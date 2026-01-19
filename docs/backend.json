@@ -64,16 +64,13 @@
           "description": "Timestamp indicating when the note was last updated.",
           "format": "date-time"
         },
-        "categoryIds": {
-          "type": "array",
-          "description": "References to Categories. (Relationship: Category N:N Note)",
-          "items": {
-            "type": "string"
-          }
+        "category": {
+          "type": "string",
+          "description": "The category of the note."
         },
-        "tagIds": {
+        "tags": {
           "type": "array",
-          "description": "References to Tags. (Relationship: Tag N:N Note)",
+          "description": "Tags for the note.",
           "items": {
             "type": "string"
           }

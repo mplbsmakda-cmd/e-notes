@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -13,14 +14,33 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
+import { useAuth, useUser, initiateEmailSignIn } from "@/firebase";
 
 export default function LoginPage() {
   const router = useRouter();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+
+  useEffect(() => {
+    if (user) {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    router.push("/dashboard");
+    initiateEmailSignIn(auth, email, password);
   };
+
+  if (isUserLoading || user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -43,6 +63,8 @@ export default function LoginPage() {
                 type="email"
                 placeholder="m@example.com"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
@@ -55,7 +77,13 @@ export default function LoginPage() {
                   Lupa password?
                 </Link>
               </div>
-              <Input id="password" type="password" required />
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
             <Button type="submit" className="w-full">
               Login

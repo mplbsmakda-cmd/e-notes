@@ -4,13 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
+import { doc, serverTimestamp } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { useToast } from "@/hooks/use-toast";
-import { mockNotes } from "@/lib/mock-data";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,23 +23,45 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDoc, useFirebase, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import type { Note } from "@/lib/types";
 
 export default function EditNotePage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
-  const [note, setNote] = React.useState<{ title: string; content: string; category: string; tags: string[] } | null>(null);
+  const { firestore, user } = useFirebase();
+  
+  const noteRef = useMemoFirebase(() => {
+    if (!user || !params.id) return null;
+    return doc(firestore, "users", user.uid, "notes", params.id);
+  }, [firestore, user, params.id]);
 
+  const { data: noteData, isLoading } = useDoc<Note>(noteRef);
+
+  const [title, setTitle] = React.useState("");
+  const [content, setContent] = React.useState("");
+  const [category, setCategory] = React.useState("");
+  const [tags, setTags] = React.useState<string[]>([]);
+  
   React.useEffect(() => {
-    const foundNote = mockNotes.find((n) => n.id === params.id);
-    if (foundNote) {
-      setNote(foundNote);
-    } else {
-      router.replace('/dashboard');
+    if (noteData) {
+      setTitle(noteData.title);
+      setContent(noteData.content);
+      setCategory(noteData.category || "");
+      setTags(noteData.tags || []);
     }
-  }, [params.id, router]);
-
+  }, [noteData]);
+  
   const handleUpdate = () => {
-    // In a real app, you would update the note here.
+    if (!noteRef) return;
+    const updatedData = {
+      title,
+      content,
+      category,
+      tags,
+      updatedAt: serverTimestamp(),
+    };
+    updateDocumentNonBlocking(noteRef, updatedData);
     toast({
       title: "Catatan Diperbarui!",
       description: "Perubahan Anda telah berhasil disimpan.",
@@ -48,6 +70,8 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   };
 
   const handleDelete = () => {
+    if (!noteRef) return;
+    deleteDocumentNonBlocking(noteRef);
     toast({
       title: "Catatan Dihapus!",
       description: "Catatan telah dihapus secara permanen.",
@@ -56,7 +80,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
     router.push("/dashboard");
   }
 
-  if (!note) {
+  if (isLoading) {
     return (
        <div className="py-6 max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-6">
@@ -77,6 +101,11 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
         </div>
       </div>
     );
+  }
+
+  if (!noteData) {
+     router.replace('/dashboard');
+     return null;
   }
 
   return (
@@ -115,8 +144,8 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
           <Label htmlFor="title">Judul</Label>
           <Input
             id="title"
-            value={note.title}
-            onChange={(e) => setNote({ ...note, title: e.target.value })}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="Judul catatan Anda..."
             className="text-lg"
           />
@@ -124,8 +153,8 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
         <div className="grid gap-2">
           <Label htmlFor="content">Isi Catatan</Label>
           <RichTextEditor
-            value={note.content}
-            onChange={(value) => setNote({ ...note, content: value })}
+            value={content}
+            onChange={setContent}
             placeholder="Mulai menulis di sini..."
           />
         </div>
@@ -134,8 +163,8 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
             <Label htmlFor="category">Kategori</Label>
             <Input
               id="category"
-              value={note.category}
-              onChange={(e) => setNote({ ...note, category: e.target.value })}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
               placeholder="e.g., Matematika"
             />
           </div>
@@ -143,8 +172,8 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
             <Label htmlFor="tags">Tags (pisahkan dengan koma)</Label>
             <Input
               id="tags"
-              value={note.tags.join(", ")}
-              onChange={(e) => setNote({ ...note, tags: e.target.value.split(",").map(t => t.trim()) })}
+              value={tags.join(", ")}
+              onChange={(e) => setTags(e.target.value.split(",").map(t => t.trim()))}
               placeholder="e.g., rumus, penting"
             />
           </div>

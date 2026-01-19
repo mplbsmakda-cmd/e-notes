@@ -1,14 +1,15 @@
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
-  BookMarked,
   Folder,
-  Home,
   LogOut,
   PlusCircle,
   Search,
   Settings,
-  Tag,
   User,
 } from "lucide-react";
 import {
@@ -35,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogoWithName } from "@/components/logo";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { useAuth, useUser } from "@/firebase";
 import { mockCategories, mockTags } from "@/lib/mock-data";
 
 export default function DashboardLayout({
@@ -43,7 +44,27 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const userAvatar = PlaceHolderImages.find((img) => img.id === "user-avatar");
+  const router = useRouter();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push("/");
+    }
+  }, [user, isUserLoading, router]);
+
+  const handleLogout = () => {
+    auth.signOut();
+  };
+  
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -123,20 +144,21 @@ export default function DashboardLayout({
                 size="icon"
                 className="overflow-hidden rounded-full"
               >
-                {userAvatar && (
+                {user?.photoURL ? (
                   <Image
-                    src={userAvatar.imageUrl}
+                    src={user.photoURL}
                     width={40}
                     height={40}
                     alt="Avatar"
                     className="overflow-hidden rounded-full"
-                    data-ai-hint={userAvatar.imageHint}
                   />
-                )}
+                 ) : (
+                  <User className="h-5 w-5" />
+                 )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Akun Saya</DropdownMenuLabel>
+              <DropdownMenuLabel>{user?.displayName || 'Akun Saya'}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <User className="mr-2" />
@@ -147,11 +169,9 @@ export default function DashboardLayout({
                 <span>Pengaturan</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/">
-                  <LogOut className="mr-2" />
-                  <span>Logout</span>
-                </Link>
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2" />
+                <span>Logout</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

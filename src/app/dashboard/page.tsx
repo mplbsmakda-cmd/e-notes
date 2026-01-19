@@ -13,15 +13,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockNotes } from "@/lib/mock-data";
+import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
+import { collection, query as firestoreQuery, where } from "firebase/firestore";
 import type { Note } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function NoteCard({ note }: { note: Note }) {
-  const date = new Date(note.updatedAt).toLocaleDateString("id-ID", {
+  const date = note.updatedAt.toDate().toLocaleDateString("id-ID", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+
+  const plainTextContent = note.content.replace(/<[^>]+>/g, '');
 
   return (
     <motion.div
@@ -40,12 +44,12 @@ function NoteCard({ note }: { note: Note }) {
           </CardHeader>
           <CardContent className="flex-grow">
             <p className="text-sm text-muted-foreground line-clamp-3">
-              {note.content}
+              {plainTextContent}
             </p>
           </CardContent>
           <CardFooter className="flex-wrap gap-2">
-            <Badge variant="outline">{note.category}</Badge>
-            {note.tags.map((tag) => (
+            {note.category && <Badge variant="outline">{note.category}</Badge>}
+            {note.tags?.map((tag) => (
               <Badge key={tag} variant="secondary">
                 {tag}
               </Badge>
@@ -57,39 +61,71 @@ function NoteCard({ note }: { note: Note }) {
   );
 }
 
+function NoteSkeleton() {
+  return (
+    <Card className="flex flex-col h-full">
+      <CardHeader>
+        <Skeleton className="h-6 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-full mt-2" />
+        <Skeleton className="h-4 w-2/3 mt-2" />
+      </CardContent>
+      <CardFooter className="flex-wrap gap-2">
+        <Skeleton className="h-6 w-20 rounded-full" />
+        <Skeleton className="h-6 w-16 rounded-full" />
+      </CardFooter>
+    </Card>
+  )
+}
+
 export default function DashboardPage() {
+  const { firestore, user } = useFirebase();
   const searchParams = useSearchParams();
-  const query = searchParams.get("q") || "";
+  const searchQuery = searchParams.get("q") || "";
   const category = searchParams.get("category");
   const tag = searchParams.get("tag");
 
+  const notesCollectionRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, "users", user.uid, "notes");
+  }, [firestore, user]);
+
+  const { data: notes, isLoading } = useCollection<Note>(notesCollectionRef);
+
   const filteredNotes = React.useMemo(() => {
-    return mockNotes.filter((note) => {
+    if (!notes) return [];
+    return notes.filter((note) => {
       const matchesQuery =
-        query === "" ||
-        note.title.toLowerCase().includes(query.toLowerCase()) ||
-        note.content.toLowerCase().includes(query.toLowerCase());
+        searchQuery === "" ||
+        note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        note.content.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory =
-        !category || note.category.toLowerCase() === category.toLowerCase();
-      const matchesTag = !tag || note.tags.includes(tag.toLowerCase());
+        !category || (note.category && note.category.toLowerCase() === category.toLowerCase());
+      const matchesTag = !tag || (note.tags && note.tags.map(t=>t.toLowerCase()).includes(tag.toLowerCase()));
       return matchesQuery && matchesCategory && matchesTag;
     });
-  }, [query, category, tag]);
+  }, [notes, searchQuery, category, tag]);
 
   let title = "Semua Catatan";
-  if (query) {
-    title = `Hasil pencarian untuk "${query}"`;
+  if (searchQuery) {
+    title = `Hasil pencarian untuk "${searchQuery}"`;
   } else if (category) {
     title = `Catatan dalam kategori "${category}"`;
   } else if (tag) {
     title = `Catatan dengan tag "${tag}"`;
   }
 
-
   return (
     <div className="py-6">
       <h1 className="text-2xl font-bold font-headline mb-6">{title}</h1>
-      {filteredNotes.length > 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[...Array(4)].map((_, i) => <NoteSkeleton key={i} />)}
+        </div>
+      ) : filteredNotes.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <AnimatePresence>
             {filteredNotes.map((note) => (
@@ -103,7 +139,7 @@ export default function DashboardPage() {
             Tidak ada catatan ditemukan
           </h3>
           <p className="text-sm text-muted-foreground">
-            Coba kata kunci atau filter yang berbeda.
+            {searchQuery || category || tag ? "Coba kata kunci atau filter yang berbeda." : "Buat catatan pertama Anda!"}
           </p>
         </div>
       )}

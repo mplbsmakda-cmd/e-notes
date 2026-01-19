@@ -4,23 +4,50 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
+import { collection, serverTimestamp } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { useToast } from "@/hooks/use-toast";
+import { useFirebase, addDocumentNonBlocking } from "@/firebase";
 
 export default function NewNotePage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { firestore, user } = useFirebase();
+
   const [title, setTitle] = React.useState("");
   const [content, setContent] = React.useState("");
   const [category, setCategory] = React.useState("");
   const [tags, setTags] = React.useState("");
 
   const handleSave = () => {
-    // In a real app, you would save the new note here.
+    if (!user || !firestore) return;
+    if (!title || !content) {
+      toast({
+        title: "Gagal Menyimpan",
+        description: "Judul dan isi catatan tidak boleh kosong.",
+        variant: "destructive"
+      })
+      return;
+    }
+
+    const notesCollection = collection(firestore, "users", user.uid, "notes");
+    
+    const newNote = {
+      userId: user.uid,
+      title,
+      content,
+      category,
+      tags: tags.split(",").map(t => t.trim()).filter(Boolean),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    addDocumentNonBlocking(notesCollection, newNote);
+    
     toast({
       title: "Catatan Disimpan!",
       description: "Catatan baru Anda telah berhasil dibuat.",
