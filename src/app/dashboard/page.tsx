@@ -102,17 +102,24 @@ export default function DashboardPage() {
   const filteredNotes = React.useMemo(() => {
     if (!notes) return [];
     const filtered = notes.filter((note) => {
+      const lowerCaseQuery = searchQuery.toLowerCase();
       const matchesQuery =
         searchQuery === "" ||
-        note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        note.content.toLowerCase().includes(searchQuery.toLowerCase());
+        note.title.toLowerCase().includes(lowerCaseQuery) ||
+        note.content.toLowerCase().includes(lowerCaseQuery) ||
+        (note.tags &&
+          note.tags.some((t) => t.toLowerCase().includes(lowerCaseQuery)));
+
       const matchesCategory =
         !category ||
-        (note.category && note.category.toLowerCase() === category.toLowerCase());
+        (note.category &&
+          note.category.toLowerCase() === category.toLowerCase());
+
       const matchesTag =
         !tag ||
         (note.tags &&
           note.tags.map((t) => t.toLowerCase()).includes(tag.toLowerCase()));
+          
       return matchesQuery && matchesCategory && matchesTag;
     });
 
