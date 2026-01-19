@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { motion } from "framer-motion";
 
 interface TrashNoteCardProps {
   note: Note;
@@ -58,7 +59,13 @@ export function TrashNoteCard({ note }: TrashNoteCardProps) {
   };
 
   return (
-    <div className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50">
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -100, transition: { duration: 0.3 } }}
+      className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
+    >
       <div>
         <h3 className="font-semibold">{note.title}</h3>
         <p className="text-sm text-muted-foreground">Dibuang pada: {date}</p>
@@ -94,6 +101,6 @@ export function TrashNoteCard({ note }: TrashNoteCardProps) {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </div>
+    </motion.div>
   );
 }

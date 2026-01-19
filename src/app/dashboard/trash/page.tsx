@@ -6,6 +6,7 @@ import { collection, query as firestoreQuery, where } from "firebase/firestore";
 import type { Note } from "@/lib/types";
 import { TrashNoteCard } from "@/components/trash-note-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatePresence, motion } from "framer-motion";
 
 function NoteSkeleton() {
   return (
@@ -41,7 +42,12 @@ export default function TrashPage() {
   const { data: notes, isLoading } = useCollection<Note>(notesQuery);
 
   return (
-    <div className="py-6">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="py-6"
+    >
       <h1 className="font-headline mb-6 text-2xl font-bold">Sampah</h1>
       {isLoading ? (
         <div className="flex flex-col gap-4">
@@ -51,9 +57,11 @@ export default function TrashPage() {
         </div>
       ) : notes && notes.length > 0 ? (
         <div className="flex flex-col gap-4">
-          {notes.map((note) => (
-            <TrashNoteCard key={note.id} note={note} />
-          ))}
+          <AnimatePresence>
+            {notes.map((note) => (
+              <TrashNoteCard key={note.id} note={note} />
+            ))}
+          </AnimatePresence>
         </div>
       ) : (
         <div className="flex h-[400px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 p-12 text-center">
@@ -65,6 +73,6 @@ export default function TrashPage() {
           </p>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
