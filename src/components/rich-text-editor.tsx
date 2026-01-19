@@ -2,6 +2,7 @@
 
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
 import {
   Bold,
   Italic,
@@ -14,6 +15,7 @@ import {
   Quote,
   Code,
   CodeSquare,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -23,6 +25,14 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
   if (!editor) {
     return null;
   }
+
+  const addImage = React.useCallback(() => {
+    const url = window.prompt("Enter image URL");
+
+    if (url) {
+      editor.chain().focus().setImage({ src: url }).run();
+    }
+  }, [editor]);
 
   return (
     <div className="p-2 flex items-center gap-1 flex-wrap">
@@ -149,6 +159,15 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
       >
         <CodeSquare className="size-4" />
       </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        type="button"
+        onClick={addImage}
+        aria-label="Add Image"
+      >
+        <ImageIcon className="size-4" />
+      </Button>
     </div>
   );
 };
@@ -165,7 +184,7 @@ export function RichTextEditor({
   placeholder,
 }: RichTextEditorProps) {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit, Image],
     content: value,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
@@ -173,7 +192,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          "prose dark:prose-invert max-w-none focus:outline-none px-4 py-2",
+          "prose dark:prose-invert max-w-none focus:outline-none px-4 py-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md",
       },
     },
   });
