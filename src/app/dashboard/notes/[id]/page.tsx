@@ -14,6 +14,7 @@ import {
   Share2,
   Lock,
   Unlock,
+  MoreVertical,
 } from "lucide-react";
 import { doc, serverTimestamp, collection, setDoc } from "firebase/firestore";
 import TurndownService from "turndown";
@@ -42,6 +43,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useDoc,
@@ -460,46 +468,6 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
-            size="icon"
-            onClick={handleSummarize}
-            aria-label="Ringkas Catatan"
-          >
-            <Sparkles className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handlePrint}
-            aria-label="Cetak Catatan"
-          >
-            <Printer className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleExportMarkdown}
-            aria-label="Ekspor ke Markdown"
-          >
-            <FileDown className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleShare}
-            aria-label="Bagikan Catatan"
-          >
-            <Share2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setLockModalOpen(true)}
-            aria-label={noteData.isLocked ? "Ubah Kunci" : "Kunci Catatan"}
-          >
-            {noteData.isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-          </Button>
-          <Button
             variant={pinned ? "secondary" : "outline"}
             size="icon"
             onClick={handleTogglePin}
@@ -531,6 +499,38 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreVertical className="h-4 w-4" />
+                <span className="sr-only">Opsi lainnya</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleSummarize}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                <span>Ringkas (AI)</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLockModalOpen(true)}>
+                {noteData.isLocked ? <Lock className="mr-2 h-4 w-4" /> : <Unlock className="mr-2 h-4 w-4" />}
+                <span>{noteData.isLocked ? 'Ubah Kunci' : 'Kunci Catatan'}</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleShare}>
+                <Share2 className="mr-2 h-4 w-4" />
+                <span>Bagikan (Tautan)</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handlePrint}>
+                <Printer className="mr-2 h-4 w-4" />
+                <span>Cetak / Simpan PDF</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportMarkdown}>
+                <FileDown className="mr-2 h-4 w-4" />
+                <span>Ekspor ke Markdown</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
