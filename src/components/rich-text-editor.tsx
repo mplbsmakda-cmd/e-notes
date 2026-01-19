@@ -3,6 +3,9 @@
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import Highlight from "@tiptap/extension-highlight";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import {
   Bold,
   Italic,
@@ -16,6 +19,9 @@ import {
   Code,
   CodeSquare,
   Image as ImageIcon,
+  Link as LinkIcon,
+  Highlighter,
+  ListChecks,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -32,6 +38,22 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
     if (url) {
       editor.chain().focus().setImage({ src: url }).run();
     }
+  }, [editor]);
+
+  const setLink = React.useCallback(() => {
+    const previousUrl = editor.getAttributes("link").href;
+    const url = window.prompt("URL", previousUrl);
+
+    if (url === null) {
+      return;
+    }
+
+    if (url === "") {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+
+    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   }, [editor]);
 
   return (
@@ -107,6 +129,17 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
         variant="ghost"
         size="icon"
         type="button"
+        onClick={() => editor.chain().focus().toggleHighlight().run()}
+        data-active={editor.isActive("highlight")}
+        className="data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+        aria-label="Highlight"
+      >
+        <Highlighter className="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        type="button"
         onClick={() => editor.chain().focus().toggleCode().run()}
         data-active={editor.isActive("code")}
         className="data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
@@ -141,6 +174,17 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
         variant="ghost"
         size="icon"
         type="button"
+        onClick={() => editor.chain().focus().toggleTaskList().run()}
+        data-active={editor.isActive("taskList")}
+        className="data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+        aria-label="Task List"
+      >
+        <ListChecks className="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        type="button"
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
         data-active={editor.isActive("blockquote")}
         className="data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
@@ -159,6 +203,7 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
       >
         <CodeSquare className="size-4" />
       </Button>
+      <Separator orientation="vertical" className="h-6 mx-1" />
       <Button
         variant="ghost"
         size="icon"
@@ -167,6 +212,17 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
         aria-label="Add Image"
       >
         <ImageIcon className="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        type="button"
+        onClick={setLink}
+        data-active={editor.isActive("link")}
+        className="data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+        aria-label="Add Link"
+      >
+        <LinkIcon className="size-4" />
       </Button>
     </div>
   );
@@ -184,7 +240,20 @@ export function RichTextEditor({
   placeholder,
 }: RichTextEditorProps) {
   const editor = useEditor({
-    extensions: [StarterKit, Image],
+    extensions: [
+      StarterKit.configure({
+        link: {
+          openOnClick: false,
+          autolink: true,
+        },
+      }),
+      Image,
+      Highlight,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+    ],
     content: value,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
@@ -192,7 +261,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          "prose dark:prose-invert max-w-none focus:outline-none px-4 py-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md",
+          "prose dark:prose-invert max-w-none focus:outline-none px-4 py-2 [&_li[data-checked=true]>p]:line-through [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md",
       },
     },
   });

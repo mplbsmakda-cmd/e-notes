@@ -73,4 +73,28 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  ul[data-type="taskList"] {
+    @apply list-none p-0;
+  }
+
+  ul[data-type="taskList"] li {
+    @apply flex items-start gap-2 my-2;
+  }
+  
+  ul[data-type="taskList"] li > label {
+    @apply mt-1;
+  }
+
+  ul[data-type="taskList"] li > div {
+    @apply flex-1;
+  }
+  
+  ul[data-type="taskList"] p {
+      @apply m-0;
+  }
+
+  mark {
+    @apply bg-accent/50 px-1 py-0.5 rounded-sm;
+  }
 }
