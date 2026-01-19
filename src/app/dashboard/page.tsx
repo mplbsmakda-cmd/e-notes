@@ -17,7 +17,7 @@ import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection, query as firestoreQuery, where } from "firebase/firestore";
 import type { Note } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Pin, Clock } from "lucide-react";
+import { Pin, Clock, Lock } from "lucide-react";
 
 function NoteCard({ note }: { note: Note }) {
   const date = note.updatedAt.toDate().toLocaleDateString("id-ID", {
@@ -41,16 +41,19 @@ function NoteCard({ note }: { note: Note }) {
     >
       <Link href={`/dashboard/notes/${note.id}`} className="block h-full">
         <Card className="relative flex h-full flex-col transition-colors duration-300 hover:border-primary hover:shadow-lg">
-          {note.pinned && (
-            <Pin className="absolute right-4 top-4 h-4 w-4 text-muted-foreground" />
-          )}
+          <div className="absolute right-4 top-4 flex items-center gap-2">
+            {note.isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
+            {note.pinned && <Pin className="h-4 w-4 text-muted-foreground" />}
+          </div>
           <CardHeader>
-            <CardTitle className="font-headline pr-6">{note.title}</CardTitle>
+            <CardTitle className="font-headline pr-12">{note.title}</CardTitle>
             <CardDescription>{date}</CardDescription>
           </CardHeader>
           <CardContent className="flex-grow">
             <p className="line-clamp-3 text-sm text-muted-foreground">
-              {plainTextContent}
+              {note.isLocked
+                ? "Catatan ini terkunci. Masukkan kata sandi untuk melihat."
+                : plainTextContent}
             </p>
           </CardContent>
           <CardFooter className="flex-wrap items-center gap-2">

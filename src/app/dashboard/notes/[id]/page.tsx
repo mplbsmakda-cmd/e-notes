@@ -12,6 +12,8 @@ import {
   Printer,
   FileDown,
   Share2,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { doc, serverTimestamp, collection, setDoc } from "firebase/firestore";
 import TurndownService from "turndown";
@@ -60,6 +62,87 @@ import {
 } from "@/components/ui/select";
 import { summarizeNote } from "@/ai/flows/summarize-note-flow";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+
+// --- Crypto Helpers ---
+const hex = (buffer: ArrayBuffer) => {
+  return Array.from(new Uint8Array(buffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+};
+
+const generateSalt = (length = 16) => {
+    const array = new Uint8Array(length);
+    window.crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function hashPassword(password: string, salt: string) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + salt);
+  const hashBuffer = await window.crypto.subtle.digest("SHA-256", data);
+  return hex(hashBuffer);
+}
+// --- End Crypto Helpers ---
+
+
+function UnlockScreen({ note, onUnlockSuccess }: { note: Note, onUnlockSuccess: () => void }) {
+  const [password, setPassword] = React.useState('');
+  const [error, setError] = React.useState('');
+  const { toast } = useToast();
+
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password) {
+      setError("Kata sandi tidak boleh kosong.");
+      return;
+    }
+
+    if (!note.passwordHash || !note.passwordSalt) {
+      setError("Data catatan tidak lengkap untuk membuka kunci.");
+      return;
+    }
+
+    const currentHash = await hashPassword(password, note.passwordSalt);
+
+    if (currentHash === note.passwordHash) {
+      toast({ title: "Kunci Terbuka" });
+      onUnlockSuccess();
+    } else {
+      setError("Kata sandi salah.");
+    }
+  };
+
+  return (
+    <div className="flex min-h-[calc(100vh-200px)] items-center justify-center">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <DialogTitle>Catatan Terkunci</DialogTitle>
+          <DialogDescription>Masukkan kata sandi untuk melihat catatan ini.</DialogDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleUnlock} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="unlock-password">Kata Sandi</Label>
+              <Input
+                id="unlock-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoFocus
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button type="submit" className="w-full">
+              Buka Kunci
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 
 export default function EditNotePage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -95,6 +178,13 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
   const [shareUrl, setShareUrl] = React.useState("");
 
+  // State for Note Lock
+  const [isUnlocked, setIsUnlocked] = React.useState(false);
+  const [isLockModalOpen, setLockModalOpen] = React.useState(false);
+  const [lockPassword, setLockPassword] = React.useState('');
+  const [lockPasswordConfirm, setLockPasswordConfirm] = React.useState('');
+  const [lockError, setLockError] = React.useState('');
+
 
   React.useEffect(() => {
     if (noteData) {
@@ -103,6 +193,9 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
       setCategory(noteData.category || "");
       setTags(noteData.tags || []);
       setPinned(noteData.pinned || false);
+      if (!noteData.isLocked) {
+        setIsUnlocked(true);
+      }
     }
   }, [noteData]);
 
@@ -222,7 +315,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
     const turndownService = new TurndownService();
     const markdown = turndownService.turndown(content);
 
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-t" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     const safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
@@ -269,6 +362,58 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
       });
     }
   };
+  
+  const handleSetLock = async () => {
+    if (!noteRef) return;
+    setLockError('');
+    if (lockPassword.length < 4) {
+      setLockError('Kata sandi minimal 4 karakter.');
+      return;
+    }
+    if (lockPassword !== lockPasswordConfirm) {
+      setLockError('Kata sandi tidak cocok.');
+      return;
+    }
+
+    const salt = generateSalt();
+    const hash = await hashPassword(lockPassword, salt);
+    
+    updateDocumentNonBlocking(noteRef, {
+      isLocked: true,
+      passwordSalt: salt,
+      passwordHash: hash,
+    });
+    
+    toast({ title: "Catatan Telah Dikunci" });
+    setLockModalOpen(false);
+    setLockPassword('');
+    setLockPasswordConfirm('');
+  };
+  
+  const handleRemoveLock = async () => {
+    if (!noteRef || !noteData?.passwordSalt) return;
+    setLockError('');
+    if (!lockPassword) {
+      setLockError('Masukkan kata sandi Anda saat ini.');
+      return;
+    }
+    
+    const currentHash = await hashPassword(lockPassword, noteData.passwordSalt);
+    if (currentHash !== noteData.passwordHash) {
+      setLockError('Kata sandi salah.');
+      return;
+    }
+    
+    updateDocumentNonBlocking(noteRef, {
+      isLocked: false,
+      passwordSalt: null,
+      passwordHash: null,
+    });
+    
+    toast({ title: "Kunci Catatan Telah Dibuka" });
+    setLockModalOpen(false);
+    setLockPassword('');
+  };
 
   if (isLoading) {
     return (
@@ -296,6 +441,10 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   if (!noteData) {
     router.replace("/dashboard");
     return null;
+  }
+
+  if (noteData.isLocked && !isUnlocked) {
+    return <UnlockScreen note={noteData} onUnlockSuccess={() => setIsUnlocked(true)} />
   }
 
   return (
@@ -341,6 +490,14 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
             aria-label="Bagikan Catatan"
           >
             <Share2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setLockModalOpen(true)}
+            aria-label={noteData.isLocked ? "Ubah Kunci" : "Kunci Catatan"}
+          >
+            {noteData.isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
           </Button>
           <Button
             variant={pinned ? "secondary" : "outline"}
@@ -511,6 +668,61 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
               Salin
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isLockModalOpen} onOpenChange={setLockModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{noteData?.isLocked ? 'Hapus Kunci Catatan' : 'Kunci Catatan'}</DialogTitle>
+            <DialogDescription>
+              {noteData?.isLocked
+                ? 'Masukkan kata sandi Anda saat ini untuk menghapus kunci dari catatan ini.'
+                : 'Atur kata sandi untuk mengunci catatan ini. Anda akan memerlukan kata sandi ini untuk melihat atau mengeditnya nanti.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {noteData?.isLocked ? (
+              <div className="grid gap-2">
+                <Label htmlFor="current-password">Kata Sandi Saat Ini</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  value={lockPassword}
+                  onChange={(e) => setLockPassword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="new-password">Kata Sandi Baru</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={lockPassword}
+                    onChange={(e) => setLockPassword(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="confirm-password">Konfirmasi Kata Sandi</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={lockPasswordConfirm}
+                    onChange={(e) => setLockPasswordConfirm(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+            {lockError && <p className="text-sm text-destructive">{lockError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLockModalOpen(false)}>Batal</Button>
+            <Button onClick={noteData?.isLocked ? handleRemoveLock : handleSetLock}>
+              {noteData?.isLocked ? 'Hapus Kunci' : 'Atur Kunci'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

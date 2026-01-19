@@ -12,6 +12,9 @@ export type Note = {
   pinned?: boolean;
   status?: "active" | "trashed";
   destructAt?: Timestamp;
+  isLocked?: boolean;
+  passwordHash?: string;
+  passwordSalt?: string;
 };
 
 export type Category = {
