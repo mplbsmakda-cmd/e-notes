@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2, Pin } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Pin, Sparkles } from "lucide-react";
 import { doc, serverTimestamp, collection } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useDoc,
@@ -40,6 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { summarizeNote } from "@/ai/flows/summarize-note-flow";
 
 export default function EditNotePage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -64,6 +73,11 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   const [category, setCategory] = React.useState("");
   const [tags, setTags] = React.useState<string[]>([]);
   const [pinned, setPinned] = React.useState(false);
+
+  // State for AI Summary
+  const [isSummaryLoading, setIsSummaryLoading] = React.useState(false);
+  const [summary, setSummary] = React.useState("");
+  const [isSummaryDialogOpen, setIsSummaryDialogOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (noteData) {
@@ -135,6 +149,36 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
     router.push("/dashboard");
   };
 
+  const handleSummarize = async () => {
+    const plainTextContent = content.replace(/<[^>]+>/g, "").trim();
+
+    if (!plainTextContent) {
+      toast({
+        title: "Konten kosong",
+        description: "Tidak ada yang bisa diringkas.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSummaryLoading(true);
+    setIsSummaryDialogOpen(true);
+    setSummary(""); // Clear previous summary
+    try {
+      const result = await summarizeNote(plainTextContent);
+      setSummary(result);
+    } catch (error) {
+      console.error("Error summarizing note:", error);
+      toast({
+        title: "Gagal Meringkas",
+        description: "Terjadi kesalahan saat berkomunikasi dengan AI.",
+        variant: "destructive",
+      });
+      setIsSummaryDialogOpen(false); // Close dialog on error
+    } finally {
+      setIsSummaryLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-4xl py-6">
@@ -175,6 +219,14 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
           <h1 className="font-headline text-2xl font-bold">Edit Catatan</h1>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleSummarize}
+            aria-label="Ringkas Catatan"
+          >
+            <Sparkles className="h-4 w-4" />
+          </Button>
           <Button
             variant={pinned ? "secondary" : "outline"}
             size="icon"
@@ -266,6 +318,30 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
           </Button>
         </div>
       </div>
+      <Dialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ringkasan Otomatis</DialogTitle>
+            <DialogDescription>
+              Berikut adalah ringkasan catatan Anda yang dibuat oleh AI.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {isSummaryLoading ? (
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{summary}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsSummaryDialogOpen(false)}>Tutup</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
