@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
-import { collection, serverTimestamp } from "firebase/firestore";
+import { collection, serverTimestamp, doc } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
   addDocumentNonBlocking,
   useCollection,
   useMemoFirebase,
+  setDocumentNonBlocking,
 } from "@/firebase";
 import {
   Select,
@@ -54,21 +55,41 @@ export default function NewNotePage() {
     }
 
     const notesCollection = collection(firestore, "users", user.uid, "notes");
+    const tagsArray = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
 
     const newNote = {
       userId: user.uid,
       title,
       content,
       category,
-      tags: tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
+      tags: tagsArray,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
     addDocumentNonBlocking(notesCollection, newNote);
+
+    // Save tags to tags collection
+    if (tagsArray.length > 0) {
+      const tagsCollectionRef = collection(
+        firestore,
+        "users",
+        user.uid,
+        "tags"
+      );
+      tagsArray.forEach((tagName) => {
+        const tagId = tagName.toLowerCase();
+        const tagDocRef = doc(tagsCollectionRef, tagId);
+        setDocumentNonBlocking(
+          tagDocRef,
+          { name: tagName, userId: user.uid },
+          { merge: true }
+        );
+      });
+    }
 
     toast({
       title: "Catatan Disimpan!",

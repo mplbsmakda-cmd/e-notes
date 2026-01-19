@@ -30,6 +30,7 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
   useCollection,
+  setDocumentNonBlocking,
 } from "@/firebase";
 import type { Note, Category } from "@/lib/types";
 import {
@@ -73,7 +74,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   }, [noteData]);
 
   const handleUpdate = () => {
-    if (!noteRef) return;
+    if (!noteRef || !user || !firestore) return;
     const updatedData = {
       title,
       content,
@@ -82,6 +83,26 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
       updatedAt: serverTimestamp(),
     };
     updateDocumentNonBlocking(noteRef, updatedData);
+
+    // Save tags to tags collection
+    if (tags.length > 0) {
+      const tagsCollectionRef = collection(
+        firestore,
+        "users",
+        user.uid,
+        "tags"
+      );
+      tags.forEach((tagName) => {
+        const tagId = tagName.toLowerCase();
+        const tagDocRef = doc(tagsCollectionRef, tagId);
+        setDocumentNonBlocking(
+          tagDocRef,
+          { name: tagName, userId: user.uid },
+          { merge: true }
+        );
+      });
+    }
+
     toast({
       title: "Catatan Diperbarui!",
       description: "Perubahan Anda telah berhasil disimpan.",

@@ -44,8 +44,7 @@ import {
   useFirebase,
   useMemoFirebase,
 } from "@/firebase";
-import { mockTags } from "@/lib/mock-data";
-import type { Category } from "@/lib/types";
+import type { Category, Tag } from "@/lib/types";
 import { collection } from "firebase/firestore";
 import { AddCategoryDialog } from "@/components/add-category-dialog";
 
@@ -68,6 +67,14 @@ export default function DashboardLayout({
 
   const { data: categories, isLoading: areCategoriesLoading } =
     useCollection<Category>(categoriesCollectionRef);
+
+  const tagsCollectionRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, "users", user.uid, "tags");
+  }, [firestore, user]);
+
+  const { data: tags, isLoading: areTagsLoading } =
+    useCollection<Tag>(tagsCollectionRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -143,17 +150,23 @@ export default function DashboardLayout({
           <SidebarGroup>
             <SidebarGroupLabel>Tags</SidebarGroupLabel>
             <div className="flex flex-wrap gap-2 px-2">
-              {mockTags.slice(0, 7).map((tag) => (
-                <Button
-                  key={tag}
-                  variant="secondary"
-                  size="sm"
-                  className="h-auto px-2 py-1 text-xs"
-                  asChild
-                >
-                  <Link href={`/dashboard?tag=${tag}`}>{tag}</Link>
-                </Button>
-              ))}
+              {areTagsLoading ? (
+                <span className="px-2 text-xs text-muted-foreground">
+                  Loading tags...
+                </span>
+              ) : (
+                tags?.slice(0, 10).map((tag) => (
+                  <Button
+                    key={tag.id}
+                    variant="secondary"
+                    size="sm"
+                    className="h-auto px-2 py-1 text-xs"
+                    asChild
+                  >
+                    <Link href={`/dashboard?tag=${tag.name}`}>{tag.name}</Link>
+                  </Button>
+                ))
+              )}
             </div>
           </SidebarGroup>
         </SidebarContent>

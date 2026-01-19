@@ -17,3 +17,9 @@ export type Category = {
   name: string;
   description?: string;
 };
+
+export type Tag = {
+  id: string;
+  userId: string;
+  name: string;
+};
