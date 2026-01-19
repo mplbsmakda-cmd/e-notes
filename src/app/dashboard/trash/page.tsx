@@ -25,6 +25,7 @@ function NoteSkeleton() {
 
 export default function TrashPage() {
   const { firestore, user } = useFirebase();
+  const [queryTime] = React.useState(new Date());
 
   const notesQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -32,9 +33,10 @@ export default function TrashPage() {
     return firestoreQuery(
       notesCollectionRef,
       where("_canAccess", "array-contains", user.uid),
-      where("status", "==", "trashed")
+      where("status", "==", "trashed"),
+      where("destructAt", ">", queryTime)
     );
-  }, [firestore, user]);
+  }, [firestore, user, queryTime]);
 
   const { data: notes, isLoading } = useCollection<Note>(notesQuery);
 

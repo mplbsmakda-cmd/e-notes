@@ -93,6 +93,7 @@ async function hashPassword(password: string, salt: string) {
 }
 // --- End Crypto Helpers ---
 
+const MAX_DATE = new Date("9999-12-31T23:59:59Z");
 
 function UnlockScreen({ note, onUnlockSuccess }: { note: Note, onUnlockSuccess: () => void }) {
   const [password, setPassword] = React.useState('');
@@ -226,7 +227,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   const handleUpdate = () => {
     if (!noteRef || !user || !firestore) return;
 
-    let destructTimestamp: Date | null = null;
+    let destructTimestamp: Date = MAX_DATE;
     if (destruct !== "never") {
       const destructDate = new Date();
       if (destruct === "1hour") {
@@ -239,7 +240,6 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
       destructTimestamp = destructDate;
     }
 
-
     const updatedData: any = {
       title,
       content,
@@ -247,7 +247,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
       tags,
       pinned,
       updatedAt: serverTimestamp(),
-      destructAt: destructTimestamp
+      destructAt: destructTimestamp,
     };
     updateDocumentNonBlocking(noteRef, updatedData);
 
@@ -534,7 +534,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      {noteData?.destructAt && (
+      {noteData?.destructAt && noteData.destructAt.toDate() < MAX_DATE && (
         <div className="mb-4">
           <Alert variant="destructive">
             <AlertTitle>Catatan ini akan hancur otomatis</AlertTitle>

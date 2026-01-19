@@ -102,6 +102,7 @@ export default function DashboardPage() {
   const searchQuery = searchParams.get("q") || "";
   const category = searchParams.get("category");
   const tag = searchParams.get("tag");
+  const [queryTime] = React.useState(new Date());
 
   const notesQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -109,9 +110,10 @@ export default function DashboardPage() {
     return firestoreQuery(
       notesCollectionRef,
       where("_canAccess", "array-contains", user.uid),
-      where("status", "!=", "trashed")
+      where("status", "==", "active"),
+      where("destructAt", ">", queryTime)
     );
-  }, [firestore, user]);
+  }, [firestore, user, queryTime]);
 
   const { data: notes, isLoading } = useCollection<Note>(notesQuery);
 
@@ -136,9 +138,7 @@ export default function DashboardPage() {
         (note.tags &&
           note.tags.map((t) => t.toLowerCase()).includes(tag.toLowerCase()));
       
-      const isNotExpired = !note.destructAt || note.destructAt.toDate() > new Date();
-          
-      return matchesQuery && matchesCategory && matchesTag && isNotExpired;
+      return matchesQuery && matchesCategory && matchesTag;
     });
 
     // Sort notes: pinned first, then by update date

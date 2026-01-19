@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/select";
 import type { Category } from "@/lib/types";
 
+const MAX_DATE = new Date("9999-12-31T23:59:59Z");
+
 export default function NewNotePage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -61,19 +63,7 @@ export default function NewNotePage() {
       .map((t) => t.trim())
       .filter(Boolean);
 
-    const newNote: any = {
-      ownerId: user.uid,
-      permissions: { [user.uid]: 'owner' },
-      _canAccess: [user.uid],
-      title,
-      content,
-      category,
-      tags: tagsArray,
-      status: "active",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-
+    let destructTimestamp = MAX_DATE;
     if (destruct !== "never") {
       const destructDate = new Date();
       if (destruct === "1hour") {
@@ -83,8 +73,22 @@ export default function NewNotePage() {
       } else if (destruct === "7days") {
         destructDate.setDate(destructDate.getDate() + 7);
       }
-      newNote.destructAt = destructDate;
+      destructTimestamp = destructDate;
     }
+
+    const newNote: any = {
+      ownerId: user.uid,
+      permissions: { [user.uid]: "owner" },
+      _canAccess: [user.uid],
+      title,
+      content,
+      category,
+      tags: tagsArray,
+      status: "active",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      destructAt: destructTimestamp,
+    };
 
     addDocumentNonBlocking(notesCollection, newNote);
 
