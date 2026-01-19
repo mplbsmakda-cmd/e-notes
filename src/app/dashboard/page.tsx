@@ -144,18 +144,28 @@ export default function DashboardPage() {
     });
   }, [notes, searchQuery, category, tag]);
 
-  let title = "Semua Catatan";
+  let titleText = "Semua Catatan";
   if (searchQuery) {
-    title = `Hasil pencarian untuk "${searchQuery}"`;
+    titleText = `Hasil pencarian untuk "${searchQuery}"`;
   } else if (category) {
-    title = `Catatan dalam kategori "${category}"`;
+    titleText = `Catatan dalam kategori "${category}"`;
   } else if (tag) {
-    title = `Catatan dengan tag "${tag}"`;
+    titleText = `Catatan dengan tag "${tag}"`;
   }
+  
+  const title = (
+    <h1 className="font-headline mb-6 text-2xl font-bold">
+      {titleText}{" "}
+      {!isLoading && (
+        <span className="text-muted-foreground">({filteredNotes.length})</span>
+      )}
+    </h1>
+  );
+
 
   return (
     <div className="py-6">
-      <h1 className="font-headline mb-6 text-2xl font-bold">{title}</h1>
+      {title}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[...Array(4)].map((_, i) => (
