@@ -74,6 +74,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "pinned": {
+          "type": "boolean",
+          "description": "Whether the note is pinned to the top."
         }
       },
       "required": [

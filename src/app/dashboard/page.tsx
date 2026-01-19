@@ -17,6 +17,7 @@ import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection, query as firestoreQuery, where } from "firebase/firestore";
 import type { Note } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pin } from "lucide-react";
 
 function NoteCard({ note }: { note: Note }) {
   const date = note.updatedAt.toDate().toLocaleDateString("id-ID", {
@@ -25,7 +26,7 @@ function NoteCard({ note }: { note: Note }) {
     day: "numeric",
   });
 
-  const plainTextContent = note.content.replace(/<[^>]+>/g, '');
+  const plainTextContent = note.content.replace(/<[^>]+>/g, "");
 
   return (
     <motion.div
@@ -37,13 +38,16 @@ function NoteCard({ note }: { note: Note }) {
       className="h-full"
     >
       <Link href={`/dashboard/notes/${note.id}`} className="block h-full">
-        <Card className="flex flex-col h-full hover:border-primary transition-colors duration-300 hover:shadow-lg">
+        <Card className="relative flex h-full flex-col transition-colors duration-300 hover:border-primary hover:shadow-lg">
+          {note.pinned && (
+            <Pin className="absolute right-4 top-4 h-4 w-4 text-muted-foreground" />
+          )}
           <CardHeader>
-            <CardTitle className="font-headline">{note.title}</CardTitle>
+            <CardTitle className="font-headline pr-6">{note.title}</CardTitle>
             <CardDescription>{date}</CardDescription>
           </CardHeader>
           <CardContent className="flex-grow">
-            <p className="text-sm text-muted-foreground line-clamp-3">
+            <p className="line-clamp-3 text-sm text-muted-foreground">
               {plainTextContent}
             </p>
           </CardContent>
@@ -78,7 +82,7 @@ function NoteSkeleton() {
         <Skeleton className="h-6 w-16 rounded-full" />
       </CardFooter>
     </Card>
-  )
+  );
 }
 
 export default function DashboardPage() {
@@ -97,15 +101,29 @@ export default function DashboardPage() {
 
   const filteredNotes = React.useMemo(() => {
     if (!notes) return [];
-    return notes.filter((note) => {
+    const filtered = notes.filter((note) => {
       const matchesQuery =
         searchQuery === "" ||
         note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         note.content.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory =
-        !category || (note.category && note.category.toLowerCase() === category.toLowerCase());
-      const matchesTag = !tag || (note.tags && note.tags.map(t=>t.toLowerCase()).includes(tag.toLowerCase()));
+        !category ||
+        (note.category && note.category.toLowerCase() === category.toLowerCase());
+      const matchesTag =
+        !tag ||
+        (note.tags &&
+          note.tags.map((t) => t.toLowerCase()).includes(tag.toLowerCase()));
       return matchesQuery && matchesCategory && matchesTag;
+    });
+
+    // Sort notes: pinned first, then by update date
+    return filtered.sort((a, b) => {
+      const aPinned = a.pinned ? 1 : 0;
+      const bPinned = b.pinned ? 1 : 0;
+      if (aPinned !== bPinned) {
+        return bPinned - aPinned;
+      }
+      return b.updatedAt.toMillis() - a.updatedAt.toMillis();
     });
   }, [notes, searchQuery, category, tag]);
 
@@ -120,10 +138,12 @@ export default function DashboardPage() {
 
   return (
     <div className="py-6">
-      <h1 className="text-2xl font-bold font-headline mb-6">{title}</h1>
+      <h1 className="font-headline mb-6 text-2xl font-bold">{title}</h1>
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {[...Array(4)].map((_, i) => <NoteSkeleton key={i} />)}
+          {[...Array(4)].map((_, i) => (
+            <NoteSkeleton key={i} />
+          ))}
         </div>
       ) : filteredNotes.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -134,12 +154,14 @@ export default function DashboardPage() {
           </AnimatePresence>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 p-12 text-center h-[400px]">
+        <div className="flex h-[400px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 p-12 text-center">
           <h3 className="text-xl font-bold tracking-tight">
             Tidak ada catatan ditemukan
           </h3>
           <p className="text-sm text-muted-foreground">
-            {searchQuery || category || tag ? "Coba kata kunci atau filter yang berbeda." : "Buat catatan pertama Anda!"}
+            {searchQuery || category || tag
+              ? "Coba kata kunci atau filter yang berbeda."
+              : "Buat catatan pertama Anda!"}
           </p>
         </div>
       )}

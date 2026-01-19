@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Pin } from "lucide-react";
 import { doc, serverTimestamp, collection } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   const [content, setContent] = React.useState("");
   const [category, setCategory] = React.useState("");
   const [tags, setTags] = React.useState<string[]>([]);
+  const [pinned, setPinned] = React.useState(false);
 
   React.useEffect(() => {
     if (noteData) {
@@ -70,8 +71,21 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
       setContent(noteData.content);
       setCategory(noteData.category || "");
       setTags(noteData.tags || []);
+      setPinned(noteData.pinned || false);
     }
   }, [noteData]);
+
+  const handleTogglePin = () => {
+    if (!noteRef) return;
+    const newPinnedStatus = !pinned;
+    setPinned(newPinnedStatus);
+    updateDocumentNonBlocking(noteRef, { pinned: newPinnedStatus });
+    toast({
+      title: newPinnedStatus
+        ? "Catatan telah dipin."
+        : "Pin pada catatan telah dilepas.",
+    });
+  };
 
   const handleUpdate = () => {
     if (!noteRef || !user || !firestore) return;
@@ -80,6 +94,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
       content,
       category,
       tags,
+      pinned,
       updatedAt: serverTimestamp(),
     };
     updateDocumentNonBlocking(noteRef, updatedData);
@@ -160,31 +175,41 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
           </Button>
           <h1 className="font-headline text-2xl font-bold">Edit Catatan</h1>
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="icon">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tindakan ini tidak dapat dibatalkan. Ini akan menghapus catatan
-                Anda secara permanen.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Batal</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                className="bg-destructive hover:bg-destructive/90"
-              >
-                Hapus
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={pinned ? "secondary" : "outline"}
+            size="icon"
+            onClick={handleTogglePin}
+            aria-label={pinned ? "Lepas pin" : "Sematkan catatan"}
+          >
+            <Pin className="h-4 w-4" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="icon">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tindakan ini tidak dapat dibatalkan. Ini akan menghapus
+                  catatan Anda secara permanen.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
+                  Hapus
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
       <div className="grid gap-6">
         <div className="grid gap-2">

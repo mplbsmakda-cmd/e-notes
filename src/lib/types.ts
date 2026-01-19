@@ -9,6 +9,7 @@ export type Note = {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   userId: string;
+  pinned?: boolean;
 };
 
 export type Category = {
