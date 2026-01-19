@@ -16,7 +16,7 @@
  * - Relational Integrity: On creation, documents in subcollections (like notes) must contain a `userId` field that
  *   matches the user ID in the path. This field is enforced as immutable on updates to prevent data from being reassigned.
  * - Secure Sharing: The `sharedNotes` collection allows anyone to read a link document if they know its ID, but creation
- *   is restricted to the owner of the note being shared (verified via a `get()` call). The link can only be marked as 'used'
+ *   is restricted to the owner of the target note (verified via a `get()` call). The link can only be marked as 'used'
  *   once and cannot be reversed.
  */
 rules_version = '2';
@@ -84,6 +84,14 @@ service cloud.firestore {
     function isOwnerIdImmutable() {
       return request.resource.data.id == resource.data.id;
     }
+    
+    /**
+     * Ensures a note has not passed its self-destruct time.
+     * @param doc The document resource.
+     */
+    function isNotExpired(doc) {
+      return !('destructAt' in doc.data) || doc.data.destructAt == null || doc.data.destructAt > request.time;
+    }
 
 
     // ------------------------------------------------------------------------
@@ -116,11 +124,11 @@ service cloud.firestore {
        * @principle Restricts all access to a user's own private data tree using path-based ownership.
        */
       match /notes/{noteId} {
-        allow get: if isOwner(userId);
+        allow get: if isOwner(userId) && isNotExpired(resource);
         allow list: if isOwner(userId);
         allow create: if isOwner(userId) && hasMatchingUserIdOnCreate(userId);
-        allow update: if isExistingOwner(userId) && isUserIdImmutable();
-        allow delete: if isExistingOwner(userId);
+        allow update: if isExistingOwner(userId) && isUserIdImmutable() && isNotExpired(resource);
+        allow delete: if isExistingOwner(userId) && isNotExpired(resource);
       }
 
       /**

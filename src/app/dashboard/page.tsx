@@ -129,8 +129,10 @@ export default function DashboardPage() {
         !tag ||
         (note.tags &&
           note.tags.map((t) => t.toLowerCase()).includes(tag.toLowerCase()));
+      
+      const isNotExpired = !note.destructAt || note.destructAt.toDate() > new Date();
           
-      return matchesQuery && matchesCategory && matchesTag;
+      return matchesQuery && matchesCategory && matchesTag && isNotExpired;
     });
 
     // Sort notes: pinned first, then by update date

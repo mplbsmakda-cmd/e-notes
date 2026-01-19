@@ -36,6 +36,7 @@ export default function NewNotePage() {
   const [content, setContent] = React.useState("");
   const [category, setCategory] = React.useState("");
   const [tags, setTags] = React.useState("");
+  const [destruct, setDestruct] = React.useState("never");
 
   const categoriesCollectionRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -60,7 +61,7 @@ export default function NewNotePage() {
       .map((t) => t.trim())
       .filter(Boolean);
 
-    const newNote = {
+    const newNote: any = {
       userId: user.uid,
       title,
       content,
@@ -70,6 +71,18 @@ export default function NewNotePage() {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
+
+    if (destruct !== "never") {
+      const destructDate = new Date();
+      if (destruct === "1hour") {
+        destructDate.setHours(destructDate.getHours() + 1);
+      } else if (destruct === "1day") {
+        destructDate.setDate(destructDate.getDate() + 1);
+      } else if (destruct === "7days") {
+        destructDate.setDate(destructDate.getDate() + 7);
+      }
+      newNote.destructAt = destructDate;
+    }
 
     addDocumentNonBlocking(notesCollection, newNote);
 
@@ -128,7 +141,7 @@ export default function NewNotePage() {
             placeholder="Mulai menulis di sini..."
           />
         </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div className="grid gap-2">
             <Label htmlFor="category">Kategori</Label>
             <Select onValueChange={setCategory} value={category}>
@@ -152,6 +165,20 @@ export default function NewNotePage() {
               onChange={(e) => setTags(e.target.value)}
               placeholder="e.g., rumus, penting"
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="destruct">Hancurkan Otomatis</Label>
+            <Select onValueChange={setDestruct} value={destruct}>
+              <SelectTrigger id="destruct">
+                <SelectValue placeholder="Pilih durasi" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="never">Jangan pernah</SelectItem>
+                <SelectItem value="1hour">Dalam 1 Jam</SelectItem>
+                <SelectItem value="1day">Dalam 1 Hari</SelectItem>
+                <SelectItem value="7days">Dalam 7 Hari</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="flex justify-end gap-2">

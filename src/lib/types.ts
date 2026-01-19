@@ -11,6 +11,7 @@ export type Note = {
   userId: string;
   pinned?: boolean;
   status?: "active" | "trashed";
+  destructAt?: Timestamp;
 };
 
 export type Category = {

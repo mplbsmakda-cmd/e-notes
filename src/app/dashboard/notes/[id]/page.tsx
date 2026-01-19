@@ -59,6 +59,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { summarizeNote } from "@/ai/flows/summarize-note-flow";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function EditNotePage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -83,6 +84,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   const [category, setCategory] = React.useState("");
   const [tags, setTags] = React.useState<string[]>([]);
   const [pinned, setPinned] = React.useState(false);
+  const [destruct, setDestruct] = React.useState("never");
 
   // State for AI Summary
   const [isSummaryLoading, setIsSummaryLoading] = React.useState(false);
@@ -122,13 +124,29 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
 
   const handleUpdate = () => {
     if (!noteRef || !user || !firestore) return;
-    const updatedData = {
+
+    let destructTimestamp: Date | null = null;
+    if (destruct !== "never") {
+      const destructDate = new Date();
+      if (destruct === "1hour") {
+        destructDate.setHours(destructDate.getHours() + 1);
+      } else if (destruct === "1day") {
+        destructDate.setDate(destructDate.getDate() + 1);
+      } else if (destruct === "7days") {
+        destructDate.setDate(destructDate.getDate() + 7);
+      }
+      destructTimestamp = destructDate;
+    }
+
+
+    const updatedData: any = {
       title,
       content,
       category,
       tags,
       pinned,
       updatedAt: serverTimestamp(),
+      destructAt: destructTimestamp
     };
     updateDocumentNonBlocking(noteRef, updatedData);
 
@@ -358,6 +376,19 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
           </AlertDialog>
         </div>
       </div>
+
+      {noteData?.destructAt && (
+        <div className="mb-4">
+          <Alert variant="destructive">
+            <AlertTitle>Catatan ini akan hancur otomatis</AlertTitle>
+            <AlertDescription>
+              Catatan ini akan menjadi tidak dapat diakses pada{" "}
+              {noteData.destructAt.toDate().toLocaleString("id-ID")}.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+      
       <div className="grid gap-6">
         <div className="grid gap-2">
           <Label htmlFor="title" className="print:hidden">
@@ -381,7 +412,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
             placeholder="Mulai menulis di sini..."
           />
         </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 print:hidden">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 print:hidden">
           <div className="grid gap-2">
             <Label htmlFor="category">Kategori</Label>
             <Select onValueChange={setCategory} value={category}>
@@ -407,6 +438,20 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
               }
               placeholder="e.g., rumus, penting"
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="destruct">Hancurkan Otomatis</Label>
+            <Select onValueChange={setDestruct} defaultValue="never">
+              <SelectTrigger id="destruct">
+                <SelectValue placeholder="Pilih durasi" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="never">Jangan pernah / Hapus timer</SelectItem>
+                <SelectItem value="1hour">Dalam 1 Jam</SelectItem>
+                <SelectItem value="1day">Dalam 1 Hari</SelectItem>
+                <SelectItem value="7days">Dalam 7 Hari</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="flex justify-end gap-2 print:hidden">
