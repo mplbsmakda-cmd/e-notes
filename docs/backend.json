@@ -78,6 +78,14 @@
         "pinned": {
           "type": "boolean",
           "description": "Whether the note is pinned to the top."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the note, e.g., active or trashed.",
+          "enum": [
+            "active",
+            "trashed"
+          ]
         }
       },
       "required": [

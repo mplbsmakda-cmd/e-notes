@@ -92,12 +92,14 @@ export default function DashboardPage() {
   const category = searchParams.get("category");
   const tag = searchParams.get("tag");
 
-  const notesCollectionRef = useMemoFirebase(() => {
+  const notesQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return collection(firestore, "users", user.uid, "notes");
+    const notesCollectionRef = collection(firestore, "users", user.uid, "notes");
+    // Only fetch active notes. Using '!=' allows old notes without the 'status' field to be included.
+    return firestoreQuery(notesCollectionRef, where("status", "!=", "trashed"));
   }, [firestore, user]);
 
-  const { data: notes, isLoading } = useCollection<Note>(notesCollectionRef);
+  const { data: notes, isLoading } = useCollection<Note>(notesQuery);
 
   const filteredNotes = React.useMemo(() => {
     if (!notes) return [];

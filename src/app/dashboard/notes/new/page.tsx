@@ -66,6 +66,7 @@ export default function NewNotePage() {
       content,
       category,
       tags: tagsArray,
+      status: "active",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };

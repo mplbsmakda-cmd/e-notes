@@ -10,6 +10,7 @@ export type Note = {
   updatedAt: Timestamp;
   userId: string;
   pinned?: boolean;
+  status?: "active" | "trashed";
 };
 
 export type Category = {

@@ -127,11 +127,10 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
 
   const handleDelete = () => {
     if (!noteRef) return;
-    deleteDocumentNonBlocking(noteRef);
+    updateDocumentNonBlocking(noteRef, { status: "trashed", pinned: false });
     toast({
-      title: "Catatan Dihapus!",
-      description: "Catatan telah dihapus secara permanen.",
-      variant: "destructive",
+      title: "Catatan dipindahkan ke Sampah",
+      description: "Anda dapat memulihkannya dari folder Sampah.",
     });
     router.push("/dashboard");
   };
@@ -192,10 +191,9 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                <AlertDialogTitle>Pindahkan catatan ke Sampah?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Tindakan ini tidak dapat dibatalkan. Ini akan menghapus
-                  catatan Anda secara permanen.
+                  Tindakan ini akan memindahkan catatan ke folder Sampah. Anda dapat memulihkannya nanti.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -204,7 +202,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
                   onClick={handleDelete}
                   className="bg-destructive hover:bg-destructive/90"
                 >
-                  Hapus
+                  Pindahkan
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
