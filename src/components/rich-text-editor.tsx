@@ -124,7 +124,7 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
   }, [editor]);
 
   return (
-    <div className="p-2 flex items-center gap-1 flex-wrap">
+    <div className="p-2 flex items-center gap-1 flex-wrap print:hidden">
       <Button
         variant="ghost"
         size="icon"
@@ -358,10 +358,10 @@ export function RichTextEditor({
   }, [value, editor]);
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg border bg-card print:border-none print:shadow-none">
       <Toolbar editor={editor} />
-      <Separator />
-      <div className="min-h-[400px] overflow-auto">
+      <Separator className="print:hidden" />
+      <div className="min-h-[400px] overflow-auto print:min-h-0 print:overflow-visible">
         <EditorContent editor={editor} placeholder={placeholder} />
       </div>
     </div>

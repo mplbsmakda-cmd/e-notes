@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2, Pin, Sparkles } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Pin, Sparkles, Printer } from "lucide-react";
 import { doc, serverTimestamp, collection } from "firebase/firestore";
 
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,10 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
       setPinned(noteData.pinned || false);
     }
   }, [noteData]);
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const handleTogglePin = () => {
     if (!noteRef) return;
@@ -208,8 +212,8 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="mx-auto max-w-4xl py-6">
-      <div className="mb-6 flex items-center justify-between gap-4">
+    <div className="mx-auto max-w-4xl py-6 print:py-0">
+      <div className="mb-6 flex items-center justify-between gap-4 print:hidden">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" asChild>
             <Link href="/dashboard">
@@ -226,6 +230,14 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
             aria-label="Ringkas Catatan"
           >
             <Sparkles className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handlePrint}
+            aria-label="Cetak Catatan"
+          >
+            <Printer className="h-4 w-4" />
           </Button>
           <Button
             variant={pinned ? "secondary" : "outline"}
@@ -263,24 +275,28 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
       </div>
       <div className="grid gap-6">
         <div className="grid gap-2">
-          <Label htmlFor="title">Judul</Label>
+          <Label htmlFor="title" className="print:hidden">
+            Judul
+          </Label>
           <Input
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Judul catatan Anda..."
-            className="text-lg"
+            className="text-lg print:border-none print:px-0 print:text-3xl print:font-bold"
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="content">Isi Catatan</Label>
+          <Label htmlFor="content" className="print:hidden">
+            Isi Catatan
+          </Label>
           <RichTextEditor
             value={content}
             onChange={setContent}
             placeholder="Mulai menulis di sini..."
           />
         </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 print:hidden">
           <div className="grid gap-2">
             <Label htmlFor="category">Kategori</Label>
             <Select onValueChange={setCategory} value={category}>
@@ -308,7 +324,7 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
             />
           </div>
         </div>
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 print:hidden">
           <Button variant="outline" asChild>
             <Link href="/dashboard">Batal</Link>
           </Button>

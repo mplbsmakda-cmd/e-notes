@@ -106,7 +106,7 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar className="print:hidden">
         <SidebarHeader>
           <div className="p-2">
             <LogoWithName />
@@ -184,7 +184,7 @@ export default function DashboardLayout({
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 py-2 backdrop-blur-sm sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 py-2 backdrop-blur-sm sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 print:hidden">
           <SidebarTrigger className="md:hidden" />
           <div className="relative ml-auto flex-1 md:grow-0">
             <form action="/dashboard" method="GET">
@@ -249,7 +249,7 @@ export default function DashboardLayout({
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <main className="flex-1 overflow-auto p-4 sm:px-6 sm:py-0">
+        <main className="flex-1 overflow-auto p-4 sm:px-6 sm:py-0 print:p-0">
           {children}
         </main>
       </SidebarInset>
