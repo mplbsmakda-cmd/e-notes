@@ -16,6 +16,7 @@ export type Category = {
   userId: string;
   name: string;
   description?: string;
+  parentId?: string;
 };
 
 export type Tag = {

@@ -47,6 +47,7 @@ import {
 import type { Category, Tag } from "@/lib/types";
 import { collection } from "firebase/firestore";
 import { AddCategoryDialog } from "@/components/add-category-dialog";
+import { CategoryList } from "@/components/category-list";
 
 export default function DashboardLayout({
   children,
@@ -125,27 +126,13 @@ export default function DashboardLayout({
                 <Plus className="h-4 w-4" />
               </Button>
             </SidebarGroupLabel>
-            <SidebarMenu>
+            <div className="flex flex-col gap-1 px-2">
               {areCategoriesLoading ? (
                 <p className="px-2 text-xs text-muted-foreground">Loading...</p>
               ) : (
-                categories?.map((category) => (
-                  <SidebarMenuItem key={category.id}>
-                    <SidebarMenuButton
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className="justify-start"
-                    >
-                      <Link href={`/dashboard?category=${category.name}`}>
-                        <Folder />
-                        {category.name}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))
+                <CategoryList categories={categories || []} />
               )}
-            </SidebarMenu>
+            </div>
           </SidebarGroup>
           <SidebarGroup>
             <SidebarGroupLabel>Tags</SidebarGroupLabel>
@@ -233,6 +220,7 @@ export default function DashboardLayout({
       <AddCategoryDialog
         open={isAddCategoryOpen}
         onOpenChange={setAddCategoryOpen}
+        categories={categories || []}
       />
     </SidebarProvider>
   );

@@ -15,20 +15,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFirebase, addDocumentNonBlocking } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
+import type { Category } from "@/lib/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AddCategoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  categories?: Category[];
 }
 
 export function AddCategoryDialog({
   open,
   onOpenChange,
+  categories,
 }: AddCategoryDialogProps) {
   const { firestore, user } = useFirebase();
   const { toast } = useToast();
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
+  const [parentId, setParentId] = React.useState<string>("root");
 
   const handleAddCategory = () => {
     if (!user || !firestore) return;
@@ -48,11 +59,15 @@ export function AddCategoryDialog({
       "categories"
     );
 
-    const newCategory = {
+    const newCategory: any = {
       userId: user.uid,
       name,
       description,
     };
+
+    if (parentId !== "root") {
+      newCategory.parentId = parentId;
+    }
 
     addDocumentNonBlocking(categoriesCollection, newCategory);
 
@@ -63,6 +78,7 @@ export function AddCategoryDialog({
 
     setName("");
     setDescription("");
+    setParentId("root");
     onOpenChange(false);
   };
 
@@ -72,7 +88,8 @@ export function AddCategoryDialog({
         <DialogHeader>
           <DialogTitle>Tambah Kategori Baru</DialogTitle>
           <DialogDescription>
-            Buat kategori baru untuk mengorganisir catatan Anda.
+            Buat kategori baru untuk mengorganisir catatan Anda. Anda juga dapat
+            menempatkannya di bawah kategori yang ada.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -99,6 +116,24 @@ export function AddCategoryDialog({
               className="col-span-3"
               placeholder="(Opsional)"
             />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="parent-category" className="text-right">
+              Induk
+            </Label>
+            <Select onValueChange={setParentId} defaultValue="root">
+              <SelectTrigger id="parent-category" className="col-span-3">
+                <SelectValue placeholder="Pilih kategori induk" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="root">Tidak ada (Root)</SelectItem>
+                {categories?.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter>
