@@ -55,14 +55,16 @@ export default function NewNotePage() {
       return;
     }
 
-    const notesCollection = collection(firestore, "users", user.uid, "notes");
+    const notesCollection = collection(firestore, "notes");
     const tagsArray = tags
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
 
     const newNote: any = {
-      userId: user.uid,
+      ownerId: user.uid,
+      permissions: { [user.uid]: 'owner' },
+      _canAccess: [user.uid],
       title,
       content,
       category,
@@ -86,7 +88,7 @@ export default function NewNotePage() {
 
     addDocumentNonBlocking(notesCollection, newNote);
 
-    // Save tags to tags collection
+    // Save tags to tags collection (user-specific)
     if (tagsArray.length > 0) {
       const tagsCollectionRef = collection(
         firestore,

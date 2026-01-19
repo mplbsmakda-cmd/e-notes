@@ -158,9 +158,9 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   const { firestore, user } = useFirebase();
 
   const noteRef = useMemoFirebase(() => {
-    if (!user || !params.id) return null;
-    return doc(firestore, "users", user.uid, "notes", params.id);
-  }, [firestore, user, params.id]);
+    if (!params.id) return null;
+    return doc(firestore, "notes", params.id);
+  }, [firestore, params.id]);
 
   const { data: noteData, isLoading } = useDoc<Note>(noteRef);
 

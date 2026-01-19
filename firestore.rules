@@ -1,23 +1,22 @@
 /**
- * Core Philosophy: This ruleset enforces a strict user-ownership model, often referred to as a "data silo" architecture.
- * Each user has complete control over their own data, and no user can see or modify another user's data.
+ * Core Philosophy: This ruleset supports a hybrid data model. User-specific data like profiles, categories, and tags
+ * are siloed under a user's ID for strict privacy. Collaborative data, primarily notes, are in a root collection
+ * with access controlled by a permissions system within each document.
  *
- * Data Structure: All application data is nested within the `/users/{userId}` collection. A user's profile is stored
- * directly in the user document, and their notes, categories, and tags are stored in dedicated subcollections
- * under their specific user path. This path-based ownership is the primary mechanism for securing data.
- * The `/sharedNotes` collection is at the root to allow public access by a unique, unguessable ID.
+ * Data Structure:
+ * - /users/{userId}: Private user data (profile, categories, tags). Access is based on path ownership.
+ * - /notes/{noteId}: Collaborative notes. Access is determined by `_canAccess` and `permissions` fields in the document.
+ * - /sharedNotes/{sharedNoteId}: Publicly accessible, single-use sharing links.
  *
  * Key Security Decisions:
- * - User Enumeration Disabled: Listing the top-level `/users` collection is explicitly forbidden to protect user privacy.
- * - Strict Path-Based Ownership: Access to any document under `/users/{userId}/...` is granted only if the requesting user's
- *   authenticated UID matches the `{userId}` in the path.
- * - Self-Creation of Profile: A user is permitted to create their own user profile document upon sign-up, but cannot
- *   create a profile for another user ID.
- * - Relational Integrity: On creation, documents in subcollections (like notes) must contain a `userId` field that
- *   matches the user ID in the path. This field is enforced as immutable on updates to prevent data from being reassigned.
- * - Secure Sharing: The `sharedNotes` collection allows anyone to read a link document if they know its ID, but creation
- *   is restricted to the owner of the target note (verified via a `get()` call). The link can only be marked as 'used'
- *   once and cannot be reversed.
+ * - User-Siloed Data: Access to anything under `/users/{userId}` is strictly limited to the user whose UID matches `{userId}`.
+ * - Note Access Control: Access to `/notes/{noteId}` is governed by document data.
+ *   - Read access is granted if a user's UID is in the `_canAccess` array.
+ *   - Write access is granted if the user's role in the `permissions` map is 'owner' or 'editor'.
+ *   - Deletion is restricted to the 'owner'.
+ * - Secure Listing: Listing notes requires a query that filters by the user's UID in the `_canAccess` array,
+ *   preventing users from discovering or accessing notes they don't have permission for.
+ * - Secure Sharing: `sharedNotes` creation is restricted to the owner of the target note, verified with a `get()` call.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -27,160 +26,95 @@ service cloud.firestore {
     // Helper Functions
     // ------------------------------------------------------------------------
 
-    /**
-     * Checks if the user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Validates that the requesting user's UID matches the {userId} in the path.
-     * This is the core of the user-ownership security model.
-     * @param userId The user ID from the document path.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * For update and delete operations, confirms the document exists and the
-     * user has ownership rights. This prevents modification of non-existent data.
-     * @param userId The user ID from the document path.
-     */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
 
-    /**
-     * Validates that on document creation, the internal `userId` field
-     * correctly matches the user ID from the path, ensuring relational integrity.
-     * @param userId The user ID from the document path.
-     */
     function hasMatchingUserIdOnCreate(userId) {
       return request.resource.data.userId == userId;
     }
 
-    /**
-     * Validates that on profile document creation, the internal `id` field
-     * correctly matches the user ID from the path.
-     * @param userId The user ID from the document path.
-     */
     function hasMatchingOwnerIdOnCreate(userId) {
       return request.resource.data.id == userId;
     }
 
-    /**
-     * Ensures that the `userId` field cannot be changed after a document is created.
-     * This prevents a document from being reassigned to a different user.
-     */
     function isUserIdImmutable() {
       return request.resource.data.userId == resource.data.userId;
     }
 
-    /**
-     * Ensures that the `id` field on a user profile cannot be changed after creation.
-     */
     function isOwnerIdImmutable() {
       return request.resource.data.id == resource.data.id;
     }
     
-    /**
-     * Ensures a note has not passed its self-destruct time.
-     * @param doc The document resource.
-     */
     function isNotExpired(doc) {
       return !('destructAt' in doc.data) || doc.data.destructAt == null || doc.data.destructAt > request.time;
     }
-
 
     // ------------------------------------------------------------------------
     // Collection Rules
     // ------------------------------------------------------------------------
 
-    /**
-     * @description Manages user profile documents.
-     * @path /users/{userId}
-     * @allow (create) A signed-in user creating their own profile document (`/users/abc`) where their auth.uid is 'abc'.
-     * @allow (get) User 'abc' reading their own profile at `/users/abc`.
-     * @deny (list) Any user, signed-in or not, from listing all documents in the `/users` collection.
-     * @deny (update) User 'abc' trying to update the profile of user 'def' at `/users/def`.
-     * @principle Enforces self-creation and strict ownership of a user's profile data, while preventing user enumeration.
-     */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
+      allow get, update, delete: if isOwner(userId);
       allow create: if isOwner(userId) && hasMatchingOwnerIdOnCreate(userId);
-      allow update: if isExistingOwner(userId) && isOwnerIdImmutable();
-      allow delete: if isExistingOwner(userId);
+      allow list: if false; // Disable user enumeration
 
-      /**
-       * @description Manages notes, which are private to each user.
-       * @path /users/{userId}/notes/{noteId}
-       * @allow (create) User 'abc' creating a note under their own path `/users/abc/notes/xyz`.
-       * @allow (list) User 'abc' listing all notes under their own path `/users/abc/notes`.
-       * @deny (get) User 'def' trying to read a note at `/users/abc/notes/xyz`.
-       * @deny (update) An anonymous user trying to update any note.
-       * @principle Restricts all access to a user's own private data tree using path-based ownership.
-       */
-      match /notes/{noteId} {
-        allow get: if isOwner(userId) && isNotExpired(resource);
-        allow list: if isOwner(userId);
-        allow create: if isOwner(userId) && hasMatchingUserIdOnCreate(userId);
-        allow update: if isExistingOwner(userId) && isUserIdImmutable() && isNotExpired(resource);
-        allow delete: if isExistingOwner(userId) && isNotExpired(resource);
-      }
-
-      /**
-       * @description Manages categories for organizing notes, private to each user.
-       * @path /users/{userId}/categories/{categoryId}
-       * @allow (list) User 'abc' listing all categories under their path `/users/abc/categories`.
-       * @allow (delete) User 'abc' deleting a category at `/users/abc/categories/xyz`.
-       * @deny (create) User 'def' trying to create a category under `/users/abc/categories`.
-       * @deny (get) An anonymous user trying to get any category document.
-       * @principle Restricts all access to a user's own private data tree using path-based ownership.
-       */
       match /categories/{categoryId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
+        allow get, list, delete: if isOwner(userId);
         allow create: if isOwner(userId) && hasMatchingUserIdOnCreate(userId);
-        allow update: if isExistingOwner(userId) && isUserIdImmutable();
-        allow delete: if isExistingOwner(userId);
+        allow update: if isOwner(userId) && isUserIdImmutable();
       }
 
-      /**
-       * @description Manages tags for labeling notes, private to each user.
-       * @path /users/{userId}/tags/{tagId}
-       * @allow (update) User 'abc' updating a tag document at `/users/abc/tags/xyz`.
-       * @allow (get) User 'abc' reading a single tag at `/users/abc/tags/xyz`.
-       * @deny (list) User 'def' trying to list tags under `/users/abc/tags`.
-       * @deny (delete) An anonymous user trying to delete any tag.
-       * @principle Restricts all access to a user's own private data tree using path-based ownership.
-       */
       match /tags/{tagId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
+        allow get, list, delete: if isOwner(userId);
         allow create: if isOwner(userId) && hasMatchingUserIdOnCreate(userId);
-        allow update: if isExistingOwner(userId) && isUserIdImmutable();
-        allow delete: if isExistingOwner(userId);
+        allow update: if isOwner(userId) && isUserIdImmutable();
       }
+    }
+
+    /**
+     * @description Manages notes, which can be shared among users.
+     * @path /notes/{noteId}
+     * @allow (get) Any user in the note's `_canAccess` array can read it.
+     * @allow (list) Users can only list notes where they have access, enforced by a query constraint.
+     * @allow (create) A new note must assign the creator as the owner.
+     * @allow (update) Users with 'owner' or 'editor' roles can update the note.
+     * @allow (delete) Only the 'owner' can delete the note.
+     * @principle Implements document-level security for collaborative data.
+     */
+    match /notes/{noteId} {
+      allow get: if isSignedIn() && request.auth.uid in resource.data._canAccess && isNotExpired(resource);
+      allow list: if isSignedIn() && request.query.where[0][2] == request.auth.uid;
+      allow create: if isSignedIn() &&
+                       request.resource.data.ownerId == request.auth.uid &&
+                       request.resource.data.permissions[request.auth.uid] == 'owner' &&
+                       request.auth.uid in request.resource.data._canAccess;
+      allow update: if isSignedIn() && resource.data.permissions[request.auth.uid] in ['owner', 'editor'] && isNotExpired(resource);
+      allow delete: if isSignedIn() && resource.data.permissions[request.auth.uid] == 'owner' && isNotExpired(resource);
     }
     
     /**
      * @description Manages one-time shareable links for notes.
      * @path /sharedNotes/{sharedNoteId}
-     * @allow (get) Anyone with the link ID can read the link document to check its status.
-     * @allow (create) Only the authenticated owner of the target note can create a share link.
-     * @allow (update) Anyone can mark a link as used (`isUsed: true`), but cannot revert it.
-     * @deny (delete, list) Deletion and listing are disabled for security.
-     * @principle Allows for secure, one-time sharing without exposing user data.
+     * @allow (get) Anyone with the link ID can read it.
+     * @allow (create) Only the note's owner can create a share link.
+     * @allow (update) Anyone can mark a link as used, but not un-use it.
+     * @principle Allows secure, one-time sharing without exposing user data.
      */
     match /sharedNotes/{sharedNoteId} {
       allow get: if true;
       allow list: if false;
       allow create: if isSignedIn() &&
                        request.resource.data.userId == request.auth.uid &&
-                       get(/databases/$(database)/documents/users/$(request.resource.data.userId)/notes/$(request.resource.data.noteId)) != null;
+                       get(/databases/$(database)/documents/notes/$(request.resource.data.noteId)).data.ownerId == request.auth.uid;
       allow update: if request.resource.data.isUsed == true && resource.data.isUsed == false;
       allow delete: if false;
     }

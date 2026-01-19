@@ -112,13 +112,11 @@ export default function DashboardLayout({
     toast({ title: "Mengekspor catatan Anda..." });
 
     try {
-      const notesCollectionRef = collection(
-        firestore,
-        "users",
-        user.uid,
-        "notes"
+      const notesCollectionRef = collection(firestore, "notes");
+      const q = query(notesCollectionRef, 
+        where("_canAccess", "array-contains", user.uid),
+        where("status", "!=", "trashed")
       );
-      const q = query(notesCollectionRef, where("status", "!=", "trashed"));
       const querySnapshot = await getDocs(q);
 
       const notes = querySnapshot.docs.map((doc) => {

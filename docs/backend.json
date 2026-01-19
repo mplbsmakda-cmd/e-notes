@@ -42,9 +42,9 @@
           "type": "string",
           "description": "Unique identifier for the Note entity."
         },
-        "userId": {
+        "ownerId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Note)"
+          "description": "The ID of the user who created and owns the note."
         },
         "title": {
           "type": "string",
@@ -86,15 +86,32 @@
             "active",
             "trashed"
           ]
+        },
+        "permissions": {
+          "type": "object",
+          "description": "A map of user IDs to their roles (e.g., 'owner', 'editor'). Governs access control.",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["owner", "editor", "viewer"]
+          }
+        },
+        "_canAccess": {
+          "type": "array",
+          "description": "An array of user IDs that have any level of access. Used for efficient querying.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
         "id",
-        "userId",
+        "ownerId",
         "title",
         "content",
         "createdAt",
-        "updatedAt"
+        "updatedAt",
+        "permissions",
+        "_canAccess"
       ]
     },
     "Category": {
@@ -207,7 +224,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profile information.  Path-based ownership ensures only the user can access their profile.",
+          "description": "Stores user profile information. Path-based ownership ensures only the user can access their profile.",
           "params": [
             {
               "name": "userId",
@@ -217,18 +234,14 @@
         }
       },
       {
-        "path": "/users/{userId}/notes/{noteId}",
+        "path": "/notes/{noteId}",
         "definition": {
           "entityName": "Note",
           "schema": {
             "$ref": "#/backend/entities/Note"
           },
-          "description": "Stores notes created by a user. Path-based ownership ensures only the user can access their notes.",
+          "description": "Stores individual notes. Access is controlled by the `permissions` map within the document.",
           "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
             {
               "name": "noteId",
               "description": "The unique identifier for the note."
@@ -293,6 +306,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, support QAPs, and maintain data integrity. It leverages path-based ownership for user-specific data and avoids hierarchical authorization dependencies. Each user owns their notes, categories, and tags, enabling straightforward security rules.\n\n*   **Users Collection:** Stores user profiles.\n*   **User-Owned Data (Notes, Categories, Tags):** Notes, Categories, and Tags are stored within user-specific subcollections (`/users/{userId}/notes/{noteId}`, `/users/{userId}/categories/{categoryId}`, `/users/{userId}/tags/{tagId}`). This path-based ownership simplifies security rules and ensures that only the user can access their data.  This approach inherently supports QAPs as list operations are scoped to the user.\n*   **Shared Notes Collection:** The `sharedNotes` collection is a root-level collection to allow public access to a link via its unique ID without exposing user information. Security rules ensure only the note's owner can create a share link, and the link can only be marked as 'used' once, providing a secure mechanism for one-time sharing.\n\nThe design avoids the need for `get()` calls in security rules for primary data access, as ownership is directly implied by the path. A `get()` is used during the creation of a `SharedNote` to verify ownership, which is a secure and acceptable pattern. This enhances security and performance while simplifying debugging.\n\nThe structure is optimized for a multi-user note-taking application, providing secure and scalable data management."
+    "reasoning": "The Firestore structure is designed for a collaborative, multi-user application. It balances user-siloed data with shared data to support both private and collaborative features.\n\n*   **Users Collection:** Stores user profiles, remaining private to each user.\n*   **User-Owned Data (Categories, Tags):** Categories and Tags remain within user-specific subcollections (`/users/{userId}/...`). This maintains privacy and simplifies security for personal organization tools.\n*   **Notes Collection:** Notes are now in a root-level `notes` collection to facilitate sharing and collaboration. This is a critical shift from the user-siloed model. Access control is no longer based on the path, but on a `permissions` map and an `_canAccess` array within each note document. This allows multiple users to be granted different levels of access (owner, editor, viewer) to the same note.\n*   **Shared Notes Collection:** The `sharedNotes` collection remains at the root for public, one-time sharing links, with creation still restricted to the note's owner.\n\nThis hybrid model—combining path-based ownership for purely private data and document-based permissions for collaborative data—provides a scalable and secure foundation. List operations on notes are secured by enforcing a query constraint on the `_canAccess` field, ensuring users can only fetch notes they are explicitly permitted to see."
   }
 }

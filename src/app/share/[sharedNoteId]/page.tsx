@@ -62,7 +62,7 @@ export default function SharedNotePage() {
   // 2. Conditionally fetch the actual note
   const noteRef = useMemoFirebase(() => {
     if (!firestore || !sharedNoteData) return null;
-    return doc(firestore, "users", sharedNoteData.userId, "notes", sharedNoteData.noteId);
+    return doc(firestore, "notes", sharedNoteData.noteId);
   }, [firestore, sharedNoteData]);
   const { data: noteData, isLoading: isNoteLoading } = useDoc<Note>(noteRef);
 

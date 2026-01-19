@@ -105,9 +105,12 @@ export default function DashboardPage() {
 
   const notesQuery = useMemoFirebase(() => {
     if (!user) return null;
-    const notesCollectionRef = collection(firestore, "users", user.uid, "notes");
-    // Only fetch active notes. Using '!=' allows old notes without the 'status' field to be included.
-    return firestoreQuery(notesCollectionRef, where("status", "!=", "trashed"));
+    const notesCollectionRef = collection(firestore, "notes");
+    return firestoreQuery(
+      notesCollectionRef,
+      where("_canAccess", "array-contains", user.uid),
+      where("status", "!=", "trashed")
+    );
   }, [firestore, user]);
 
   const { data: notes, isLoading } = useCollection<Note>(notesQuery);

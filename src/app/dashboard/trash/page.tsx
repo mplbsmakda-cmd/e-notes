@@ -28,8 +28,12 @@ export default function TrashPage() {
 
   const notesQuery = useMemoFirebase(() => {
     if (!user) return null;
-    const notesCollectionRef = collection(firestore, "users", user.uid, "notes");
-    return firestoreQuery(notesCollectionRef, where("status", "==", "trashed"));
+    const notesCollectionRef = collection(firestore, "notes");
+    return firestoreQuery(
+      notesCollectionRef,
+      where("_canAccess", "array-contains", user.uid),
+      where("status", "==", "trashed")
+    );
   }, [firestore, user]);
 
   const { data: notes, isLoading } = useCollection<Note>(notesQuery);

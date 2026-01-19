@@ -28,7 +28,7 @@ interface TrashNoteCardProps {
 }
 
 export function TrashNoteCard({ note }: TrashNoteCardProps) {
-  const { firestore, user } = useFirebase();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
 
   const date = note.updatedAt.toDate().toLocaleDateString("id-ID", {
@@ -38,8 +38,8 @@ export function TrashNoteCard({ note }: TrashNoteCardProps) {
   });
 
   const handleRestore = () => {
-    if (!user || !firestore) return;
-    const noteRef = doc(firestore, "users", user.uid, "notes", note.id);
+    if (!firestore) return;
+    const noteRef = doc(firestore, "notes", note.id);
     updateDocumentNonBlocking(noteRef, { status: "active" });
     toast({
       title: "Catatan Dipulihkan",
@@ -48,8 +48,8 @@ export function TrashNoteCard({ note }: TrashNoteCardProps) {
   };
 
   const handleDeletePermanently = () => {
-    if (!user || !firestore) return;
-    const noteRef = doc(firestore, "users", user.uid, "notes", note.id);
+    if (!firestore) return;
+    const noteRef = doc(firestore, "notes", note.id);
     deleteDocumentNonBlocking(noteRef);
     toast({
       title: "Catatan Dihapus Permanen",

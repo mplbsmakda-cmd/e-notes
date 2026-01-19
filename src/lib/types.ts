@@ -8,7 +8,9 @@ export type Note = {
   tags: string[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  userId: string;
+  ownerId: string;
+  permissions: { [key: string]: 'owner' | 'editor' | 'viewer' };
+  _canAccess: string[];
   pinned?: boolean;
   status?: "active" | "trashed";
   destructAt?: Timestamp;
