@@ -657,12 +657,20 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
           <div className="flex items-center space-x-2 pt-4">
             <Input id="share-url" value={shareUrl} readOnly />
             <Button
-              onClick={() => {
-                navigator.clipboard.writeText(shareUrl);
-                toast({
-                  title: "Tautan disalin!",
-                  description: "Tautan berbagi telah disalin ke clipboard Anda.",
-                });
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(shareUrl);
+                  toast({
+                    title: "Tautan disalin!",
+                    description: "Tautan berbagi telah disalin ke clipboard Anda.",
+                  });
+                } catch (err) {
+                  toast({
+                    title: "Gagal menyalin",
+                    description: "Silakan salin tautan secara manual.",
+                    variant: "destructive"
+                  });
+                }
               }}
             >
               Salin

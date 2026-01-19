@@ -11,11 +11,10 @@
  * Key Security Decisions:
  * - User-Siloed Data: Access to anything under `/users/{userId}` is strictly limited to the user whose UID matches `{userId}`.
  * - Note Access Control: Access to `/notes/{noteId}` is governed by document data.
- *   - Read access is granted if a user's UID is in the `_canAccess` array.
+ *   - Read access ('get') is granted if a user's UID is in the `_canAccess` array.
+ *   - List access for queries is implicitly granted if the query constraints ensure that every potential document in the result set would pass the 'get' rule. This is why client-side queries MUST filter by `_canAccess`.
  *   - Write access is granted if the user's role in the `permissions` map is 'owner' or 'editor'.
  *   - Deletion is restricted to the 'owner'.
- * - Secure Listing: Listing notes requires a query that filters by the user's UID in the `_canAccess` array,
- *   preventing users from discovering or accessing notes they don't have permission for.
  * - Secure Sharing: `sharedNotes` creation is restricted to the owner of the target note, verified with a `get()` call.
  */
 rules_version = '2';
@@ -84,7 +83,7 @@ service cloud.firestore {
      * @description Manages notes, which can be shared among users.
      * @path /notes/{noteId}
      * @allow (get) Any user in the note's `_canAccess` array can read it.
-     * @allow (list) Users can only list notes where they have access, enforced by a query constraint.
+     * @allow (list) Implicitly allowed if the query is constrained to documents where the user has 'get' access.
      * @allow (create) A new note must assign the creator as the owner.
      * @allow (update) Users with 'owner' or 'editor' roles can update the note.
      * @allow (delete) Only the 'owner' can delete the note.
@@ -92,7 +91,8 @@ service cloud.firestore {
      */
     match /notes/{noteId} {
       allow get: if isSignedIn() && request.auth.uid in resource.data._canAccess && isNotExpired(resource);
-      allow list: if isSignedIn() && request.query.where[0][2] == request.auth.uid;
+      // List operations are secured by the 'get' rule. Client-side queries MUST filter
+      // by '_canAccess' to ensure only authorized documents are requested.
       allow create: if isSignedIn() &&
                        request.resource.data.ownerId == request.auth.uid &&
                        request.resource.data.permissions[request.auth.uid] == 'owner' &&
