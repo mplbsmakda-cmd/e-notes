@@ -6,6 +6,7 @@ import Image from "@tiptap/extension-image";
 import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import { Node } from '@tiptap/core';
 import {
   Bold,
   Italic,
@@ -22,10 +23,56 @@ import {
   Link as LinkIcon,
   Highlighter,
   ListChecks,
+  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import * as React from "react";
+
+const Youtube = Node.create({
+  name: 'youtube',
+  group: 'block',
+  atom: true,
+
+  addAttributes() {
+    return {
+      src: {
+        default: null,
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'div[data-youtube-video] iframe',
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['div', { 'data-youtube-video': '' }, ['iframe', {
+      frameborder: '0',
+      allowfullscreen: 'true',
+      ...HTMLAttributes,
+    }]];
+  },
+
+  addCommands() {
+    return {
+      setYoutubeVideo: (options: { src: string }) => ({ commands }) => {
+        if (!options.src) {
+          return false;
+        }
+        return commands.insertContent({
+          type: this.name,
+          attrs: options,
+        });
+      },
+    };
+  },
+});
+
 
 const Toolbar = ({ editor }: { editor: Editor | null }) => {
   if (!editor) {
@@ -37,6 +84,26 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
 
     if (url) {
       editor.chain().focus().setImage({ src: url }).run();
+    }
+  }, [editor]);
+
+  const addYoutubeVideo = React.useCallback(() => {
+    const url = window.prompt('Enter YouTube URL');
+
+    if (url) {
+      const extractYoutubeVideoId = (url: string): string | null => {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+      };
+      
+      const videoId = extractYoutubeVideoId(url);
+
+      if (videoId) {
+        editor.chain().focus().setYoutubeVideo({ src: `https://www.youtube.com/embed/${videoId}` }).run();
+      } else {
+        window.alert('Please enter a valid YouTube URL.');
+      }
     }
   }, [editor]);
 
@@ -217,6 +284,15 @@ const Toolbar = ({ editor }: { editor: Editor | null }) => {
         variant="ghost"
         size="icon"
         type="button"
+        onClick={addYoutubeVideo}
+        aria-label="Add YouTube Video"
+      >
+        <Video className="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        type="button"
         onClick={setLink}
         data-active={editor.isActive("link")}
         className="data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
@@ -253,6 +329,7 @@ export function RichTextEditor({
       TaskItem.configure({
         nested: true,
       }),
+      Youtube,
     ],
     content: value,
     onUpdate: ({ editor }) => {

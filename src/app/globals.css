@@ -97,4 +97,12 @@
   mark {
     @apply bg-accent/50 px-1 py-0.5 rounded-sm;
   }
+
+  [data-youtube-video] {
+    @apply relative overflow-hidden rounded-md aspect-video;
+  }
+
+  [data-youtube-video] iframe {
+    @apply absolute top-0 left-0 w-full h-full;
+  }
 }
