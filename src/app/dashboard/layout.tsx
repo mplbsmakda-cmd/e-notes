@@ -12,6 +12,8 @@ import {
   Settings,
   User,
   Plus,
+  Notebook,
+  Trash2,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -110,6 +112,22 @@ export default function DashboardLayout({
                 <Link href="/dashboard/notes/new">
                   <PlusCircle />
                   Catatan Baru
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <Link href="/dashboard">
+                  <Notebook />
+                  Semua Catatan
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <Link href="/dashboard/trash">
+                  <Trash2 />
+                  Sampah
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
