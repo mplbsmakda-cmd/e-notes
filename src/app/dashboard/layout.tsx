@@ -14,6 +14,7 @@ import {
   Plus,
   Notebook,
   Trash2,
+  Clock,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -50,6 +51,12 @@ import type { Category, Tag } from "@/lib/types";
 import { collection } from "firebase/firestore";
 import { AddCategoryDialog } from "@/components/add-category-dialog";
 import { CategoryList } from "@/components/category-list";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { PomodoroTimer } from "@/components/pomodoro-timer";
 
 export default function DashboardLayout({
   children,
@@ -190,6 +197,17 @@ export default function DashboardLayout({
               />
             </form>
           </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Clock className="h-5 w-5" />
+                <span className="sr-only">Buka Timer Pomodoro</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-4" align="end">
+              <PomodoroTimer />
+            </PopoverContent>
+          </Popover>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
