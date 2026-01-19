@@ -17,7 +17,7 @@ import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection, query as firestoreQuery, where } from "firebase/firestore";
 import type { Note } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Pin } from "lucide-react";
+import { Pin, Clock } from "lucide-react";
 
 function NoteCard({ note }: { note: Note }) {
   const date = note.updatedAt.toDate().toLocaleDateString("id-ID", {
@@ -27,6 +27,8 @@ function NoteCard({ note }: { note: Note }) {
   });
 
   const plainTextContent = note.content.replace(/<[^>]+>/g, "");
+  const wordCount = plainTextContent.split(/\s+/).filter(Boolean).length;
+  const readingTime = Math.ceil(wordCount / 200);
 
   return (
     <motion.div
@@ -51,13 +53,19 @@ function NoteCard({ note }: { note: Note }) {
               {plainTextContent}
             </p>
           </CardContent>
-          <CardFooter className="flex-wrap gap-2">
+          <CardFooter className="flex-wrap items-center gap-2">
             {note.category && <Badge variant="outline">{note.category}</Badge>}
             {note.tags?.map((tag) => (
               <Badge key={tag} variant="secondary">
                 {tag}
               </Badge>
             ))}
+            {readingTime > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                <span>{readingTime} min baca</span>
+              </div>
+            )}
           </CardFooter>
         </Card>
       </Link>
