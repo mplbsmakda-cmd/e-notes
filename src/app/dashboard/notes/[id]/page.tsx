@@ -3,8 +3,17 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2, Pin, Sparkles, Printer } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Trash2,
+  Pin,
+  Sparkles,
+  Printer,
+  FileDown,
+} from "lucide-react";
 import { doc, serverTimestamp, collection } from "firebase/firestore";
+import TurndownService from "turndown";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -183,6 +192,29 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleExportMarkdown = () => {
+    if (!content) return;
+
+    const turndownService = new TurndownService();
+    const markdown = turndownService.turndown(content);
+
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    link.href = url;
+    link.download = `${safeTitle || "catatan"}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Catatan Diekspor",
+      description: "Catatan Anda telah diekspor sebagai file Markdown.",
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-4xl py-6">
@@ -238,6 +270,14 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
             aria-label="Cetak Catatan"
           >
             <Printer className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleExportMarkdown}
+            aria-label="Ekspor ke Markdown"
+          >
+            <FileDown className="h-4 w-4" />
           </Button>
           <Button
             variant={pinned ? "secondary" : "outline"}
