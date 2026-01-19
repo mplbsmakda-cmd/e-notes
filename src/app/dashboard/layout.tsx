@@ -15,6 +15,7 @@ import {
   Notebook,
   Trash2,
   Clock,
+  FileDown,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -47,8 +48,8 @@ import {
   useFirebase,
   useMemoFirebase,
 } from "@/firebase";
-import type { Category, Tag } from "@/lib/types";
-import { collection } from "firebase/firestore";
+import type { Category, Note, Tag } from "@/lib/types";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { AddCategoryDialog } from "@/components/add-category-dialog";
 import { CategoryList } from "@/components/category-list";
 import {
@@ -57,6 +58,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { PomodoroTimer } from "@/components/pomodoro-timer";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardLayout({
   children,
@@ -65,6 +67,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const auth = useAuth();
+  const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
 
@@ -94,6 +97,74 @@ export default function DashboardLayout({
 
   const handleLogout = () => {
     auth.signOut();
+  };
+
+  const handleExportAllNotes = async () => {
+    if (!user || !firestore) {
+      toast({
+        title: "Gagal Mengekspor",
+        description: "Pengguna tidak terautentikasi.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({ title: "Mengekspor catatan Anda..." });
+
+    try {
+      const notesCollectionRef = collection(
+        firestore,
+        "users",
+        user.uid,
+        "notes"
+      );
+      const q = query(notesCollectionRef, where("status", "!=", "trashed"));
+      const querySnapshot = await getDocs(q);
+
+      const notes = querySnapshot.docs.map((doc) => {
+        const data = doc.data() as Note;
+        const { createdAt, updatedAt, destructAt, ...rest } = data;
+        return {
+          id: doc.id,
+          ...rest,
+          createdAt: createdAt.toDate().toISOString(),
+          updatedAt: updatedAt.toDate().toISOString(),
+          destructAt: destructAt ? destructAt.toDate().toISOString() : null,
+        };
+      });
+
+      if (notes.length === 0) {
+        toast({
+          title: "Tidak ada catatan untuk diekspor",
+        });
+        return;
+      }
+
+      const jsonString = JSON.stringify({ notes }, null, 2);
+      const blob = new Blob([jsonString], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `BukuCatatan_backup_${
+        new Date().toISOString().split("T")[0]
+      }.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Ekspor Berhasil",
+        description: `${notes.length} catatan telah diekspor sebagai file JSON.`,
+      });
+    } catch (error) {
+      console.error("Error exporting notes:", error);
+      toast({
+        title: "Gagal Mengekspor",
+        description: "Terjadi kesalahan saat mengambil data catatan Anda.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isUserLoading || !user) {
@@ -240,6 +311,10 @@ export default function DashboardLayout({
               <DropdownMenuItem>
                 <Settings className="mr-2" />
                 <span>Pengaturan</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportAllNotes}>
+                <FileDown className="mr-2 h-4 w-4" />
+                <span>Ekspor Semua Catatan</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
