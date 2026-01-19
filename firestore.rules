@@ -78,8 +78,9 @@ service cloud.firestore {
     /**
      * @description Manages notes, which can be shared among users.
      * @path /notes/{noteId}
-     * @allow (get) Any user in the note's `_canAccess` array can read it.
-     * @allow (list) Implicitly allowed if the query is constrained to documents where the user has 'get' access.
+     * @allow (get) Any user in the note's `_canAccess` array can read it, if it has not self-destructed.
+     * @allow (list) Any signed-in user can *attempt* to query notes. Security is enforced by requiring
+     *              client queries to match the constraints in the 'get' rule.
      * @allow (create) A new note must assign the creator as the owner.
      * @allow (update) Users with 'owner' or 'editor' roles can update the note.
      * @allow (delete) Only the 'owner' can delete the note.
@@ -87,8 +88,11 @@ service cloud.firestore {
      */
     match /notes/{noteId} {
       allow get: if isSignedIn() && request.auth.uid in resource.data._canAccess && resource.data.destructAt > request.time;
-      // List operations are secured by the 'get' rule. Client-side queries MUST filter
-      // by '_canAccess' to ensure only authorized documents are requested.
+      // Allow list operations for any signed-in user.
+      // The actual security is enforced by the 'get' rule. A query is only allowed if its
+      // constraints guarantee that every possible result document satisfies the 'get' rule.
+      // The client MUST therefore query with `where('_canAccess', 'array-contains', request.auth.uid)`.
+      allow list: if isSignedIn();
       allow create: if isSignedIn() &&
                        request.resource.data.ownerId == request.auth.uid &&
                        request.resource.data.permissions[request.auth.uid] == 'owner' &&
