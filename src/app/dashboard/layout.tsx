@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import {
   Search,
   Settings,
   User,
+  Plus,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -36,8 +37,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogoWithName } from "@/components/logo";
-import { useAuth, useUser } from "@/firebase";
-import { mockCategories, mockTags } from "@/lib/mock-data";
+import {
+  useAuth,
+  useUser,
+  useCollection,
+  useFirebase,
+  useMemoFirebase,
+} from "@/firebase";
+import { mockTags } from "@/lib/mock-data";
+import type { Category } from "@/lib/types";
+import { collection } from "firebase/firestore";
+import { AddCategoryDialog } from "@/components/add-category-dialog";
 
 export default function DashboardLayout({
   children,
@@ -47,6 +57,17 @@ export default function DashboardLayout({
   const router = useRouter();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
+
+  const [isAddCategoryOpen, setAddCategoryOpen] = useState(false);
+
+  const categoriesCollectionRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, "users", user.uid, "categories");
+  }, [firestore, user]);
+
+  const { data: categories, isLoading: areCategoriesLoading } =
+    useCollection<Category>(categoriesCollectionRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -57,7 +78,7 @@ export default function DashboardLayout({
   const handleLogout = () => {
     auth.signOut();
   };
-  
+
   if (isUserLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -86,23 +107,37 @@ export default function DashboardLayout({
             </SidebarMenuItem>
           </SidebarMenu>
           <SidebarGroup>
-            <SidebarGroupLabel>Kategori</SidebarGroupLabel>
+            <SidebarGroupLabel className="flex w-full items-center justify-between">
+              <span>Kategori</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setAddCategoryOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </SidebarGroupLabel>
             <SidebarMenu>
-              {mockCategories.map((category) => (
-                <SidebarMenuItem key={category}>
-                  <SidebarMenuButton
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className="justify-start"
-                  >
-                    <Link href={`/dashboard?category=${category}`}>
-                      <Folder />
-                      {category}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {areCategoriesLoading ? (
+                <p className="px-2 text-xs text-muted-foreground">Loading...</p>
+              ) : (
+                categories?.map((category) => (
+                  <SidebarMenuItem key={category.id}>
+                    <SidebarMenuButton
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className="justify-start"
+                    >
+                      <Link href={`/dashboard?category=${category.name}`}>
+                        <Folder />
+                        {category.name}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              )}
             </SidebarMenu>
           </SidebarGroup>
           <SidebarGroup>
@@ -124,7 +159,7 @@ export default function DashboardLayout({
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 py-2 backdrop-blur-sm sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
           <SidebarTrigger className="md:hidden" />
           <div className="relative ml-auto flex-1 md:grow-0">
             <form action="/dashboard" method="GET">
@@ -152,13 +187,15 @@ export default function DashboardLayout({
                     alt="Avatar"
                     className="overflow-hidden rounded-full"
                   />
-                 ) : (
+                ) : (
                   <User className="h-5 w-5" />
-                 )}
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user?.displayName || 'Akun Saya'}</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                {user?.displayName || "Akun Saya"}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <User className="mr-2" />
@@ -180,6 +217,10 @@ export default function DashboardLayout({
           {children}
         </main>
       </SidebarInset>
+      <AddCategoryDialog
+        open={isAddCategoryOpen}
+        onOpenChange={setAddCategoryOpen}
+      />
     </SidebarProvider>
   );
 }

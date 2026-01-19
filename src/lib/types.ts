@@ -10,3 +10,10 @@ export type Note = {
   updatedAt: Timestamp;
   userId: string;
 };
+
+export type Category = {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+};

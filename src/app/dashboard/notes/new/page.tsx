@@ -11,7 +11,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { useToast } from "@/hooks/use-toast";
-import { useFirebase, addDocumentNonBlocking } from "@/firebase";
+import {
+  useFirebase,
+  addDocumentNonBlocking,
+  useCollection,
+  useMemoFirebase,
+} from "@/firebase";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { Category } from "@/lib/types";
 
 export default function NewNotePage() {
   const router = useRouter();
@@ -23,31 +36,40 @@ export default function NewNotePage() {
   const [category, setCategory] = React.useState("");
   const [tags, setTags] = React.useState("");
 
+  const categoriesCollectionRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, "users", user.uid, "categories");
+  }, [firestore, user]);
+  const { data: categories } = useCollection<Category>(categoriesCollectionRef);
+
   const handleSave = () => {
     if (!user || !firestore) return;
     if (!title || !content) {
       toast({
         title: "Gagal Menyimpan",
         description: "Judul dan isi catatan tidak boleh kosong.",
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
       return;
     }
 
     const notesCollection = collection(firestore, "users", user.uid, "notes");
-    
+
     const newNote = {
       userId: user.uid,
       title,
       content,
       category,
-      tags: tags.split(",").map(t => t.trim()).filter(Boolean),
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
     addDocumentNonBlocking(notesCollection, newNote);
-    
+
     toast({
       title: "Catatan Disimpan!",
       description: "Catatan baru Anda telah berhasil dibuat.",
@@ -56,14 +78,14 @@ export default function NewNotePage() {
   };
 
   return (
-    <div className="py-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="mx-auto max-w-4xl py-6">
+      <div className="mb-6 flex items-center gap-4">
         <Button variant="outline" size="icon" asChild>
           <Link href="/dashboard">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <h1 className="text-2xl font-bold font-headline">Buat Catatan Baru</h1>
+        <h1 className="font-headline text-2xl font-bold">Buat Catatan Baru</h1>
       </div>
       <div className="grid gap-6">
         <div className="grid gap-2">
@@ -84,15 +106,21 @@ export default function NewNotePage() {
             placeholder="Mulai menulis di sini..."
           />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="grid gap-2">
             <Label htmlFor="category">Kategori</Label>
-            <Input
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g., Matematika"
-            />
+            <Select onValueChange={setCategory} value={category}>
+              <SelectTrigger id="category">
+                <SelectValue placeholder="Pilih kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories?.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="tags">Tags (pisahkan dengan koma)</Label>
@@ -106,7 +134,7 @@ export default function NewNotePage() {
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" asChild>
-             <Link href="/dashboard">Batal</Link>
+            <Link href="/dashboard">Batal</Link>
           </Button>
           <Button onClick={handleSave}>
             <Save className="mr-2 h-4 w-4" />
