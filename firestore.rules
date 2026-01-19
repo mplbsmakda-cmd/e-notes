@@ -1,0 +1,157 @@
+/**
+ * Core Philosophy: This ruleset enforces a strict user-ownership model, often referred to as a "data silo" architecture.
+ * Each user has complete control over their own data, and no user can see or modify another user's data.
+ *
+ * Data Structure: All application data is nested within the `/users/{userId}` collection. A user's profile is stored
+ * directly in the user document, and their notes, categories, and tags are stored in dedicated subcollections
+ * under their specific user path. This path-based ownership is the primary mechanism for securing data.
+ *
+ * Key Security Decisions:
+ * - User Enumeration Disabled: Listing the top-level `/users` collection is explicitly forbidden to protect user privacy.
+ * - Strict Path-Based Ownership: Access to any document under `/users/{userId}/...` is granted only if the requesting user's
+ *   authenticated UID matches the `{userId}` in the path.
+ * - Self-Creation of Profile: A user is permitted to create their own user profile document upon sign-up, but cannot
+ *   create a profile for another user ID.
+ * - Relational Integrity: On creation, documents in subcollections (like notes) must contain a `userId` field that
+ *   matches the user ID in the path. This field is enforced as immutable on updates to prevent data from being reassigned.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------------
+    // Helper Functions
+    // ------------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Validates that the requesting user's UID matches the {userId} in the path.
+     * This is the core of the user-ownership security model.
+     * @param userId The user ID from the document path.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * For update and delete operations, confirms the document exists and the
+     * user has ownership rights. This prevents modification of non-existent data.
+     * @param userId The user ID from the document path.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Validates that on document creation, the internal `userId` field
+     * correctly matches the user ID from the path, ensuring relational integrity.
+     * @param userId The user ID from the document path.
+     */
+    function hasMatchingUserIdOnCreate(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    /**
+     * Validates that on profile document creation, the internal `id` field
+     * correctly matches the user ID from the path.
+     * @param userId The user ID from the document path.
+     */
+    function hasMatchingOwnerIdOnCreate(userId) {
+      return request.resource.data.id == userId;
+    }
+
+    /**
+     * Ensures that the `userId` field cannot be changed after a document is created.
+     * This prevents a document from being reassigned to a different user.
+     */
+    function isUserIdImmutable() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    /**
+     * Ensures that the `id` field on a user profile cannot be changed after creation.
+     */
+    function isOwnerIdImmutable() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+
+    // ------------------------------------------------------------------------
+    // Collection Rules
+    // ------------------------------------------------------------------------
+
+    /**
+     * @description Manages user profile documents.
+     * @path /users/{userId}
+     * @allow (create) A signed-in user creating their own profile document (`/users/abc`) where their auth.uid is 'abc'.
+     * @allow (get) User 'abc' reading their own profile at `/users/abc`.
+     * @deny (list) Any user, signed-in or not, from listing all documents in the `/users` collection.
+     * @deny (update) User 'abc' trying to update the profile of user 'def' at `/users/def`.
+     * @principle Enforces self-creation and strict ownership of a user's profile data, while preventing user enumeration.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && hasMatchingOwnerIdOnCreate(userId);
+      allow update: if isExistingOwner(userId) && isOwnerIdImmutable();
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Manages notes, which are private to each user.
+       * @path /users/{userId}/notes/{noteId}
+       * @allow (create) User 'abc' creating a note under their own path `/users/abc/notes/xyz`.
+       * @allow (list) User 'abc' listing all notes under their own path `/users/abc/notes`.
+       * @deny (get) User 'def' trying to read a note at `/users/abc/notes/xyz`.
+       * @deny (update) An anonymous user trying to update any note.
+       * @principle Restricts all access to a user's own private data tree using path-based ownership.
+       */
+      match /notes/{noteId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && hasMatchingUserIdOnCreate(userId);
+        allow update: if isExistingOwner(userId) && isUserIdImmutable();
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Manages categories for organizing notes, private to each user.
+       * @path /users/{userId}/categories/{categoryId}
+       * @allow (list) User 'abc' listing all categories under their path `/users/abc/categories`.
+       * @allow (delete) User 'abc' deleting a category at `/users/abc/categories/xyz`.
+       * @deny (create) User 'def' trying to create a category under `/users/abc/categories`.
+       * @deny (get) An anonymous user trying to get any category document.
+       * @principle Restricts all access to a user's own private data tree using path-based ownership.
+       */
+      match /categories/{categoryId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && hasMatchingUserIdOnCreate(userId);
+        allow update: if isExistingOwner(userId) && isUserIdImmutable();
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Manages tags for labeling notes, private to each user.
+       * @path /users/{userId}/tags/{tagId}
+       * @allow (update) User 'abc' updating a tag document at `/users/abc/tags/xyz`.
+       * @allow (get) User 'abc' reading a single tag at `/users/abc/tags/xyz`.
+       * @deny (list) User 'def' trying to list tags under `/users/abc/tags`.
+       * @deny (delete) An anonymous user trying to delete any tag.
+       * @principle Restricts all access to a user's own private data tree using path-based ownership.
+       */
+      match /tags/{tagId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && hasMatchingUserIdOnCreate(userId);
+        allow update: if isExistingOwner(userId) && isUserIdImmutable();
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+  }
+}
