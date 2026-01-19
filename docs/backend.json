@@ -154,6 +154,42 @@
         "userId",
         "name"
       ]
+    },
+    "SharedNote": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SharedNote",
+      "type": "object",
+      "description": "Represents a one-time shareable link for a note.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the shared link."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns the note."
+        },
+        "noteId": {
+          "type": "string",
+          "description": "The ID of the note being shared."
+        },
+        "isUsed": {
+          "type": "boolean",
+          "description": "Whether the link has been used."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the link was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "noteId",
+        "isUsed",
+        "createdAt"
+      ]
     }
   },
   "auth": {
@@ -239,8 +275,24 @@
             }
           ]
         }
+      },
+      {
+        "path": "/sharedNotes/{sharedNoteId}",
+        "definition": {
+          "entityName": "SharedNote",
+          "schema": {
+            "$ref": "#/backend/entities/SharedNote"
+          },
+          "description": "Stores one-time shareable links. Publicly readable by ID, but only the note owner can create them.",
+          "params": [
+            {
+              "name": "sharedNoteId",
+              "description": "The unique identifier for the share link."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, support QAPs, and maintain data integrity. It leverages path-based ownership for user-specific data and avoids hierarchical authorization dependencies. Each user owns their notes, categories, and tags, enabling straightforward security rules.\n\n*   **Users Collection:** Stores user profiles.\n*   **User-Owned Data (Notes, Categories, Tags):** Notes, Categories, and Tags are stored within user-specific subcollections (`/users/{userId}/notes/{noteId}`, `/users/{userId}/categories/{categoryId}`, `/users/{userId}/tags/{tagId}`). This path-based ownership simplifies security rules and ensures that only the user can access their data.  This approach inherently supports QAPs as list operations are scoped to the user.\n\nThe design avoids the need for `get()` calls in security rules, as ownership is directly implied by the path. This enhances security and performance while simplifying debugging.\n\nThe structure is optimized for a multi-user note-taking application, providing secure and scalable data management."
+    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, support QAPs, and maintain data integrity. It leverages path-based ownership for user-specific data and avoids hierarchical authorization dependencies. Each user owns their notes, categories, and tags, enabling straightforward security rules.\n\n*   **Users Collection:** Stores user profiles.\n*   **User-Owned Data (Notes, Categories, Tags):** Notes, Categories, and Tags are stored within user-specific subcollections (`/users/{userId}/notes/{noteId}`, `/users/{userId}/categories/{categoryId}`, `/users/{userId}/tags/{tagId}`). This path-based ownership simplifies security rules and ensures that only the user can access their data.  This approach inherently supports QAPs as list operations are scoped to the user.\n*   **Shared Notes Collection:** The `sharedNotes` collection is a root-level collection to allow public access to a link via its unique ID without exposing user information. Security rules ensure only the note's owner can create a share link, and the link can only be marked as 'used' once, providing a secure mechanism for one-time sharing.\n\nThe design avoids the need for `get()` calls in security rules for primary data access, as ownership is directly implied by the path. A `get()` is used during the creation of a `SharedNote` to verify ownership, which is a secure and acceptable pattern. This enhances security and performance while simplifying debugging.\n\nThe structure is optimized for a multi-user note-taking application, providing secure and scalable data management."
   }
 }

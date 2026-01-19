@@ -11,8 +11,9 @@ import {
   Sparkles,
   Printer,
   FileDown,
+  Share2,
 } from "lucide-react";
-import { doc, serverTimestamp, collection } from "firebase/firestore";
+import { doc, serverTimestamp, collection, setDoc } from "firebase/firestore";
 import TurndownService from "turndown";
 
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,11 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
   const [isSummaryLoading, setIsSummaryLoading] = React.useState(false);
   const [summary, setSummary] = React.useState("");
   const [isSummaryDialogOpen, setIsSummaryDialogOpen] = React.useState(false);
+
+  // State for Share Link
+  const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
+  const [shareUrl, setShareUrl] = React.useState("");
+
 
   React.useEffect(() => {
     if (noteData) {
@@ -215,6 +221,37 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
     });
   };
 
+  const handleShare = async () => {
+    if (!user || !firestore || !params.id) return;
+
+    toast({ title: "Membuat tautan berbagi..." });
+
+    const sharedNotesCollection = collection(firestore, "sharedNotes");
+    const sharedNoteRef = doc(sharedNotesCollection); // Firestore auto-generates an ID here
+
+    const newSharedNote = {
+      userId: user.uid,
+      noteId: params.id,
+      isUsed: false,
+      createdAt: serverTimestamp(),
+    };
+
+    try {
+      await setDoc(sharedNoteRef, newSharedNote);
+      
+      const url = `${window.location.origin}/share/${sharedNoteRef.id}`;
+      setShareUrl(url);
+      setIsShareDialogOpen(true);
+    } catch (error) {
+      console.error("Error creating share link:", error);
+      toast({
+        title: "Gagal membuat tautan",
+        description: "Terjadi kesalahan saat membuat tautan berbagi.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-4xl py-6">
@@ -278,6 +315,14 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
             aria-label="Ekspor ke Markdown"
           >
             <FileDown className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleShare}
+            aria-label="Bagikan Catatan"
+          >
+            <Share2 className="h-4 w-4" />
           </Button>
           <Button
             variant={pinned ? "secondary" : "outline"}
@@ -396,6 +441,31 @@ export default function EditNotePage({ params }: { params: { id: string } }) {
           <DialogFooter>
             <Button onClick={() => setIsSummaryDialogOpen(false)}>Tutup</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bagikan Catatan (Tautan Sekali Pakai)</DialogTitle>
+            <DialogDescription>
+              Tautan ini hanya dapat digunakan satu kali. Setelah dibuka, tautan
+              akan hangus. Salin dan bagikan kepada orang yang Anda tuju.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2 pt-4">
+            <Input id="share-url" value={shareUrl} readOnly />
+            <Button
+              onClick={() => {
+                navigator.clipboard.writeText(shareUrl);
+                toast({
+                  title: "Tautan disalin!",
+                  description: "Tautan berbagi telah disalin ke clipboard Anda.",
+                });
+              }}
+            >
+              Salin
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

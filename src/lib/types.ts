@@ -26,3 +26,11 @@ export type Tag = {
   userId: string;
   name: string;
 };
+
+export type SharedNote = {
+  id: string;
+  userId: string;
+  noteId: string;
+  isUsed: boolean;
+  createdAt: Timestamp;
+};
