@@ -14,14 +14,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // In a real app, you'd handle registration logic here.
+    // For this mock, we'll just redirect to the dashboard.
     router.push("/dashboard");
   };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="mx-auto w-full max-w-sm shadow-lg">
@@ -29,13 +30,17 @@ export default function LoginPage() {
           <div className="mb-4 flex justify-center">
             <Logo />
           </div>
-          <CardTitle className="text-2xl font-headline">Login</CardTitle>
+          <CardTitle className="text-2xl font-headline">Daftar</CardTitle>
           <CardDescription>
-            Masukkan email Anda di bawah untuk login ke akun Anda
+            Buat akun baru untuk mulai mencatat
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="grid gap-4">
+          <form onSubmit={handleRegister} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="full-name">Nama Lengkap</Label>
+              <Input id="full-name" placeholder="John Doe" required />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -46,25 +51,17 @@ export default function LoginPage() {
               />
             </div>
             <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-                <Link
-                  href="#"
-                  className="ml-auto inline-block text-sm underline"
-                >
-                  Lupa password?
-                </Link>
-              </div>
+              <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" required />
             </div>
             <Button type="submit" className="w-full">
-              Login
+              Buat Akun
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
-            Belum punya akun?{" "}
-            <Link href="/register" className="underline">
-              Daftar
+            Sudah punya akun?{" "}
+            <Link href="/" className="underline">
+              Login
             </Link>
           </div>
         </CardContent>
